@@ -406,9 +406,21 @@ input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 4p
   font-weight: 850;
   color: #403932;
 }
-.about-card { display: none; }
 @media (max-width: 980px) {
   .segment-row { grid-template-columns: 1fr; }
   .about-hero { grid-template-columns: 1fr; }
   .rules-intro p { white-space: normal; }
+}
+
+
+/* 2026-07 hotfix: about visibility */
+#about.page.active {
+  display: flex !important;
+  flex-direction: column;
+  gap: 0;
+}
+#about .about-hero {
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }

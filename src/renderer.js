@@ -18,26 +18,26 @@ const pageMeta = {
 function defaultSegments() {
   return [
     {
-      id: crypto.randomUUID(), enabled: true, name: '标题 01', prefix: 'T=', joinBefore: false, suffix: '__', connector: '__',
+      id: crypto.randomUUID(), enabled: true, name: '标题01', prefix: 'T=', joinBefore: false, suffix: '__', connector: '__',
       rule: '根据截图生成一个中文视频标题。只输出标题本身，6到16个中文字符，要自然、有画面感、适合做文件名。不要解释，不要标点，不要数字，不要引号，不要扩展名。',
     },
     {
-      id: crypto.randomUUID(), enabled: true, name: '标题 02', prefix: '', joinBefore: true, suffix: '__', connector: '__',
+      id: crypto.randomUUID(), enabled: true, name: '标题02', prefix: '', joinBefore: true, suffix: '__', connector: '__',
       rule: '根据截图生成第二段中文标题，可补充人物特征、画面重点或风格。只输出标题内容本身，4到14个中文字符。不要解释，不要标点，不要数字，不要引号，不要扩展名。',
     },
     {
-      id: crypto.randomUUID(), enabled: true, name: '标题 03', prefix: '', joinBefore: true, suffix: '', connector: '',
+      id: crypto.randomUUID(), enabled: true, name: '标题03', prefix: '', joinBefore: true, suffix: '', connector: '',
       rule: '根据截图生成第三段中文标题，可补充场景或动作。只输出标题内容本身，4到14个中文字符。不要解释，不要标点，不要数字，不要引号，不要扩展名。',
     },
   ];
 }
 
 function normalizeSegmentName(name, index) {
-  const fallback = `标题 ${String(index + 1).padStart(2, '0')}`;
+  const fallback = `标题${String(index + 1).padStart(2, '0')}`;
   return String(name || fallback)
-    .replace(/^名称\s*(\d+)$/i, (_, n) => `标题 ${String(n).padStart(2, '0')}`)
-    .replace(/^自定义片段\s*(\d+)$/i, (_, n) => `标题 ${String(n).padStart(2, '0')}`)
-    .replace(/^标题(\d+)$/i, (_, n) => `标题 ${String(n).padStart(2, '0')}`);
+    .replace(/^名称\s*(\d+)$/i, (_, n) => `标题${String(n).padStart(2, '0')}`)
+    .replace(/^自定义片段\s*(\d+)$/i, (_, n) => `标题${String(n).padStart(2, '0')}`)
+    .replace(/^标题(\d+)$/i, (_, n) => `标题${String(n).padStart(2, '0')}`);
 }
 
 function init() {
@@ -193,7 +193,7 @@ function addSegment() {
   syncSegmentsFromDom();
   const n = state.segments.length + 1;
   state.segments.push({
-    id: crypto.randomUUID(), enabled: true, name: `标题 ${String(n).padStart(2, '0')}`, prefix: '', joinBefore: true, suffix: '', connector: '',
+    id: crypto.randomUUID(), enabled: true, name: `标题${String(n).padStart(2, '0')}`, prefix: '', joinBefore: true, suffix: '', connector: '',
     rule: '写清楚这个标题段要生成什么。要求模型只输出这一段的最终内容，不要解释，不要扩展名。',
   });
   renderSegments();
@@ -218,7 +218,7 @@ function renderSegments() {
       </div>
       <div class="segment-body">
         <div class="segment-row segment-row-main">
-          <label>标题段名称<input class="seg-name" value="${escapeAttr(normalizeSegmentName(seg.name, index))}" placeholder="例如：标题 01" /></label>
+          <label>标题段名称<input class="seg-name" value="${escapeAttr(normalizeSegmentName(seg.name, index))}" placeholder="例如：标题01" /></label>
           <label>固定前缀<input class="seg-prefix" value="${escapeAttr(seg.prefix || '')}" placeholder="可空，如 T=" /></label>
           <label>固定后缀<input class="seg-suffix" type="text" value="${escapeAttr(seg.suffix ?? seg.connector ?? '')}" placeholder="例如 __" /></label>
         </div>
@@ -244,7 +244,7 @@ function syncSegmentsFromDom() {
   state.segments = cards.map((card, i) => ({
     id: card.dataset.id,
     enabled: card.querySelector('.seg-enabled').checked,
-    name: card.querySelector('.seg-name').value.trim() || `标题 ${String(i + 1).padStart(2, '0')}`,
+    name: card.querySelector('.seg-name').value.trim() || `标题${String(i + 1).padStart(2, '0')}`,
     prefix: card.querySelector('.seg-prefix').value,
     joinBefore: false,
     suffix: card.querySelector('.seg-suffix').value,
