@@ -9,7 +9,7 @@ const state = {
 
 const pageMeta = {
   videos: ['视频任务', '添加视频，按你的命名规则自动生成新文件名。'],
-  rules: ['命名模板', '像搭积木一样组合标题 01、标题 02、标题 03，并为每段设置固定后缀。'],
+  rules: ['命名模板', '设置标题段、前缀、后缀和生成规则。'],
   model: ['模型设置', '连接 Ollama、选择视觉模型、设置截图数量和超时。'],
   logs: ['运行日志', '查看生成、重试、错误与重命名记录。'],
   about: ['关于软件', '了解软件用途、工作方式和官方网站。'],
@@ -70,7 +70,6 @@ function bindButtons() {
   $('#saveSettingsBtn').addEventListener('click', saveSettings);
   $('#startBtn').addEventListener('click', startProcessing);
   $('#loadModelsBtn').addEventListener('click', loadModels);
-  $('#ollamaSiteBtn')?.addEventListener('click', () => window.aglove.openExternal('https://ollama.com'));
   $('#cangifySiteBtn')?.addEventListener('click', () => window.aglove.openExternal('https://cangify.com'));
 }
 
@@ -217,15 +216,18 @@ function renderSegments() {
           <button class="icon-btn danger delete-seg" title="删除" ${state.segments.length <= 1 ? 'disabled' : ''}>×</button>
         </div>
       </div>
-      <div class="segment-grid">
-        <label>片段名称<input class="seg-name" value="${escapeAttr(normalizeSegmentName(seg.name, index))}" placeholder="例如：标题 01 / 标题 02 / 标题 03" /></label>
-        <label>固定前缀<input class="seg-prefix" value="${escapeAttr(seg.prefix || '')}" placeholder="可空，如 T=" /></label>
-      </div>
-      <div class="connect-row">
-        <label class="switch-line"><input class="seg-enabled" type="checkbox" ${seg.enabled ? 'checked' : ''} /> 使用这个片段</label>
-        <label class="suffix-field">固定后缀<input class="seg-suffix" type="text" value="${escapeAttr(seg.suffix ?? seg.connector ?? '')}" placeholder="例如 __ 或 -" /></label>
-      </div>
-      <label>生成规则<textarea class="seg-rule">${escapeHtml(seg.rule || '')}</textarea></label>`;
+      <div class="segment-body">
+        <div class="segment-row segment-row-main">
+          <label>标题段名称<input class="seg-name" value="${escapeAttr(normalizeSegmentName(seg.name, index))}" placeholder="例如：标题 01" /></label>
+          <label>固定前缀<input class="seg-prefix" value="${escapeAttr(seg.prefix || '')}" placeholder="可空，如 T=" /></label>
+          <label>固定后缀<input class="seg-suffix" type="text" value="${escapeAttr(seg.suffix ?? seg.connector ?? '')}" placeholder="例如 __" /></label>
+        </div>
+        <label class="rule-field">生成规则<textarea class="seg-rule">${escapeHtml(seg.rule || '')}</textarea></label>
+        <div class="segment-foot">
+          <label class="switch-line"><input class="seg-enabled" type="checkbox" ${seg.enabled ? 'checked' : ''} /> 启用这个标题段</label>
+          <span>预览：${escapeHtml(`${seg.prefix || ''}${normalizeSegmentName(seg.name, index)}${seg.suffix ?? seg.connector ?? ''}`)}</span>
+        </div>
+      </div>`;
     wrap.appendChild(card);
   });
 

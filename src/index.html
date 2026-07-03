@@ -63,7 +63,7 @@
         <div class="card rules-intro">
           <div>
             <h2>文件名模板</h2>
-            <p>把文件名拆成“标题 01 / 标题 02 / 标题 03”等多个标题段。每个标题段都可以设置自己的生成规则和固定后缀。</p>
+            <p>设置多个标题段，组合生成最终文件名。</p>
           </div>
           <button id="addSegmentBtn" class="btn primary">+ 添加片段</button>
         </div>
@@ -78,10 +78,6 @@
         <div class="card form-grid">
           <label>Ollama 地址<input id="ollamaUrl" type="text" value="http://127.0.0.1:11434" /></label>
           <label>模型<div class="model-line"><input id="modelName" type="text" value="llava" /><button id="loadModelsBtn" class="btn ghost">加载模型</button></div></label>
-          <div class="form-link-card">
-            <div>还没有安装 Ollama？</div>
-            <button id="ollamaSiteBtn" class="link-button" type="button">打开 Ollama 官网</button>
-          </div>
           <label>截图数量<input id="shotCount" type="number" min="1" max="12" value="5" /></label>
           <label>请求超时（秒）<input id="timeoutSec" type="number" min="60" step="60" value="900" /></label>
         </div>
