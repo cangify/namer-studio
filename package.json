@@ -1,0 +1,44 @@
+{
+  "name": "aglove-video-renamer",
+  "version": "0.1.0",
+  "description": "Ai 视频自动命名工具",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check src/main.js && node --check src/preload.js && node --check src/renderer.js",
+    "pack:win": "electron-builder --win zip",
+    "pack:linux": "electron-builder --linux AppImage"
+  },
+  "keywords": [
+    "video",
+    "ollama",
+    "renamer"
+  ],
+  "author": "AGLove",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.aglove.video-renamer",
+    "productName": "Ai视频自动命名工具",
+    "directories": {
+      "output": "release-electron"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "zip"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    }
+  }
+}

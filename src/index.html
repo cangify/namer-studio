@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: file:; media-src 'self' file: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src http://127.0.0.1:* http://localhost:*;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ai视频自动命名工具</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">AI</div>
+        <div>
+          <div class="brand-title">Ai 视频自动命名工具</div>
+          <div class="brand-subtitle">本地视觉模型批量取名</div>
+        </div>
+      </div>
+      <button class="nav active" data-page="videos">视频任务</button>
+      <button class="nav" data-page="rules">命名模板</button>
+      <button class="nav" data-page="model">模型设置</button>
+      <button class="nav" data-page="logs">运行日志</button>
+      <button class="nav" data-page="about">关于软件</button>
+      <div class="sidebar-note">根据视频截图调用本地 Ai 模型，批量生成清晰、统一、可直接重命名的文件名。</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="pageTitle">视频任务</h1>
+          <p id="pageSubtitle">添加视频，按你的命名规则自动生成新文件名。</p>
+        </div>
+        <div class="top-actions">
+          <button id="saveSettingsBtn" class="btn ghost">保存设置</button>
+          <button id="startBtn" class="btn primary">开始分析取名</button>
+        </div>
+      </header>
+
+      <section id="videos" class="page active">
+        <div class="card toolbar">
+          <button id="addVideosBtn" class="btn">添加视频</button>
+          <button id="addFolderBtn" class="btn">添加文件夹</button>
+          <button id="removeSelectedBtn" class="btn ghost">移除选中</button>
+          <button id="clearBtn" class="btn ghost">清空列表</button>
+          <label class="check auto-rename-check"><input id="autoRename" type="checkbox" /> <span>生成后自动重命名</span></label>
+        </div>
+        <div class="card table-card">
+          <div class="table-head">
+            <span>视频列表</span>
+            <span id="countBadge" class="badge">0 个视频</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th class="sel">选择</th><th>视频路径</th><th>状态</th><th>新名称</th></tr></thead>
+              <tbody id="videoRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="rules" class="page">
+        <div class="card rules-intro">
+          <div>
+            <h2>文件名模板</h2>
+            <p>把文件名拆成“标题 / 分类 / 标签 / 自定义片段”。每个片段都有自己的生成规则，适合不同用户保存不同命名习惯。</p>
+          </div>
+          <button id="addSegmentBtn" class="btn primary">+ 添加片段</button>
+        </div>
+        <div id="segments" class="segments"></div>
+        <div class="card preview-card">
+          <div class="preview-label">文件名结构预览</div>
+          <div id="patternPreview" class="pattern-preview"></div>
+        </div>
+      </section>
+
+      <section id="model" class="page">
+        <div class="card form-grid">
+          <label>Ollama 地址<input id="ollamaUrl" type="text" value="http://127.0.0.1:11434" /></label>
+          <label>模型<div class="model-line"><input id="modelName" type="text" value="llava" /><button id="loadModelsBtn" class="btn ghost">加载模型</button></div></label>
+          <div class="form-link-card">
+            <div>还没有安装 Ollama？</div>
+            <button id="ollamaSiteBtn" class="link-button" type="button">打开 Ollama 官网</button>
+          </div>
+          <label>截图数量<input id="shotCount" type="number" min="1" max="12" value="5" /></label>
+          <label>请求超时（秒）<input id="timeoutSec" type="number" min="60" step="60" value="900" /></label>
+        </div>
+        <div class="card hint-card">
+          <b>提示：</b>视觉大模型建议用 5 张截图、900 秒超时。标题会被硬校验，不符合规则会自动重试，不会直接采用脏结果。
+        </div>
+      </section>
+
+      <section id="logs" class="page">
+        <div class="card log-card">
+          <pre id="logText"></pre>
+        </div>
+      </section>
+
+      <section id="about" class="page">
+        <div class="card about-card">
+          <h2>关于 Ai 视频自动命名工具</h2>
+          <p>这是一款面向本地视频整理的批量取名工具。软件会从视频中截取多张画面，调用本机 Ollama 视觉模型分析内容，再按照你设置的命名模板生成规范文件名。</p>
+          <ul>
+            <li>支持添加单个视频或整个文件夹。</li>
+            <li>可自由组合标题、分类、标签和自定义片段。</li>
+            <li>可选择只生成新名称，也可以勾选后自动重命名原文件。</li>
+            <li>模型运行在本地 Ollama，适合注重隐私和批量整理的场景。</li>
+          </ul>
+          <div class="about-links">
+            <button id="cangifySiteBtn" class="btn primary" type="button">访问官网 cangify.com</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <video id="captureVideo" muted playsinline></video>
+  <canvas id="captureCanvas"></canvas>
+  <script src="renderer.js"></script>
+</body>
+</html>
