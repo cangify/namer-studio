@@ -9,7 +9,7 @@ const state = {
 
 const pageMeta = {
   videos: ['视频任务', '添加视频，按你的命名规则自动生成新文件名。'],
-  rules: ['命名模板', '像搭积木一样组合标题、分类、标签或任意自定义片段。'],
+  rules: ['命名模板', '像搭积木一样组合标题 01、标题 02、标题 03，并为每段设置固定后缀。'],
   model: ['模型设置', '连接 Ollama、选择视觉模型、设置截图数量和超时。'],
   logs: ['运行日志', '查看生成、重试、错误与重命名记录。'],
   about: ['关于软件', '了解软件用途、工作方式和官方网站。'],
@@ -18,28 +18,32 @@ const pageMeta = {
 function defaultSegments() {
   return [
     {
-      id: crypto.randomUUID(), enabled: true, name: '标题', prefix: 'T=', joinBefore: false, connector: '',
+      id: crypto.randomUUID(), enabled: true, name: '标题 01', prefix: 'T=', joinBefore: false, suffix: '__', connector: '__',
       rule: '根据截图生成一个中文视频标题。只输出标题本身，6到16个中文字符，要自然、有画面感、适合做文件名。不要解释，不要标点，不要数字，不要引号，不要扩展名。',
     },
     {
-      id: crypto.randomUUID(), enabled: true, name: '分类', prefix: 'C=', joinBefore: true, connector: '__',
-      rule: '根据截图生成分类。只输出分类词，多个分类用英文逗号分隔。分类要概括人物身材、年龄感、人数类型。不要解释，不要标点句子，不要扩展名。',
+      id: crypto.randomUUID(), enabled: true, name: '标题 02', prefix: '', joinBefore: true, suffix: '__', connector: '__',
+      rule: '根据截图生成第二段中文标题，可补充人物特征、画面重点或风格。只输出标题内容本身，4到14个中文字符。不要解释，不要标点，不要数字，不要引号，不要扩展名。',
     },
     {
-      id: crypto.randomUUID(), enabled: true, name: '标签', prefix: 'G=', joinBefore: true, connector: '__',
-      rule: '根据截图生成标签。只输出标签词，多个标签用英文逗号分隔。标签可以包含画面主体、人物特征、场景、着装等。不要解释，不要扩展名。',
+      id: crypto.randomUUID(), enabled: true, name: '标题 03', prefix: '', joinBefore: true, suffix: '', connector: '',
+      rule: '根据截图生成第三段中文标题，可补充场景或动作。只输出标题内容本身，4到14个中文字符。不要解释，不要标点，不要数字，不要引号，不要扩展名。',
     },
   ];
 }
 
 function normalizeSegmentName(name, index) {
-  const fallback = ['标题', '分类', '标签'][index] || `自定义片段${index + 1}`;
-  return String(name || fallback).replace(/^名称\s*(\d+)$/i, (_, n) => ['标题', '分类', '标签'][Number(n) - 1] || `自定义片段${n}`);
+  const fallback = `标题 ${String(index + 1).padStart(2, '0')}`;
+  return String(name || fallback)
+    .replace(/^名称\s*(\d+)$/i, (_, n) => `标题 ${String(n).padStart(2, '0')}`)
+    .replace(/^自定义片段\s*(\d+)$/i, (_, n) => `标题 ${String(n).padStart(2, '0')}`)
+    .replace(/^标题(\d+)$/i, (_, n) => `标题 ${String(n).padStart(2, '0')}`);
 }
 
 function init() {
   bindNav();
   bindButtons();
+  checkOllamaInstall();
   renderSegments();
   renderVideos();
   loadSettings();
@@ -79,10 +83,46 @@ async function loadSettings() {
   $('#timeoutSec').value = data.timeoutSec || 900;
   $('#autoRename').checked = !!data.autoRename;
   if (Array.isArray(data.segments) && data.segments.length) {
-    state.segments = data.segments.map((s, i) => ({ ...s, id: s.id || crypto.randomUUID(), name: normalizeSegmentName(s.name, i) }));
+    state.segments = migrateSegments(data.segments);
     renderSegments();
   }
   log('已读取设置。');
+}
+
+
+function migrateSegments(segments) {
+  return segments.map((s, i, arr) => {
+    const oldNextConnector = arr[i + 1]?.joinBefore ? (arr[i + 1]?.connector || '') : '';
+    const suffix = s.suffix ?? oldNextConnector ?? s.connector ?? '';
+    return {
+      ...s,
+      id: s.id || crypto.randomUUID(),
+      name: normalizeSegmentName(s.name, i),
+      joinBefore: false,
+      suffix,
+      connector: suffix,
+    };
+  });
+}
+
+async function checkOllamaInstall() {
+  const notice = $('#ollamaInstallNotice');
+  if (!notice) return;
+  try {
+    const result = await window.aglove.ollamaInstalled();
+    if (!result.installed) {
+      notice.hidden = false;
+      notice.innerHTML = '当前电脑还没有检测到 Ollama。请先前往 <button id="ollamaNoticeBtn" class="link-button" type="button">Ollama 官网</button> 下载并安装，然后回到这里加载模型。';
+      $('#ollamaNoticeBtn')?.addEventListener('click', () => window.aglove.openExternal('https://ollama.com'));
+      log('未检测到 Ollama，请先安装后再加载模型。');
+    } else {
+      notice.hidden = true;
+      if (result.version) log(`已检测到 Ollama：${result.version}`);
+    }
+  } catch (_) {
+    notice.hidden = false;
+    notice.textContent = '未能检测 Ollama 安装状态。如无法加载模型，请先确认 Ollama 已安装并正在运行。';
+  }
 }
 
 async function saveSettings() {
@@ -154,8 +194,8 @@ function addSegment() {
   syncSegmentsFromDom();
   const n = state.segments.length + 1;
   state.segments.push({
-    id: crypto.randomUUID(), enabled: true, name: `自定义片段${n}`, prefix: '', joinBefore: true, connector: '__',
-    rule: '写清楚这一段要生成什么。要求模型只输出这一段的最终内容，不要解释，不要扩展名。',
+    id: crypto.randomUUID(), enabled: true, name: `标题 ${String(n).padStart(2, '0')}`, prefix: '', joinBefore: true, suffix: '', connector: '',
+    rule: '写清楚这个标题段要生成什么。要求模型只输出这一段的最终内容，不要解释，不要扩展名。',
   });
   renderSegments();
 }
@@ -178,13 +218,12 @@ function renderSegments() {
         </div>
       </div>
       <div class="segment-grid">
-        <label>片段名称<input class="seg-name" value="${escapeAttr(normalizeSegmentName(seg.name, index))}" placeholder="例如：标题 / 分类 / 标签" /></label>
+        <label>片段名称<input class="seg-name" value="${escapeAttr(normalizeSegmentName(seg.name, index))}" placeholder="例如：标题 01 / 标题 02 / 标题 03" /></label>
         <label>固定前缀<input class="seg-prefix" value="${escapeAttr(seg.prefix || '')}" placeholder="可空，如 T=" /></label>
       </div>
       <div class="connect-row">
         <label class="switch-line"><input class="seg-enabled" type="checkbox" ${seg.enabled ? 'checked' : ''} /> 使用这个片段</label>
-        <label class="switch-line"><input class="seg-join" type="checkbox" ${seg.joinBefore ? 'checked' : ''} ${index === 0 && state.segments.length > 1 ? 'disabled' : ''} /> 与前一片段连接</label>
-        <label class="connector-field">连接符<input class="seg-connector" type="text" value="${escapeAttr(seg.connector || '')}" placeholder="__" ${index === 0 && state.segments.length > 1 ? 'disabled' : ''} /></label>
+        <label class="suffix-field">固定后缀<input class="seg-suffix" type="text" value="${escapeAttr(seg.suffix ?? seg.connector ?? '')}" placeholder="例如 __ 或 -" /></label>
       </div>
       <label>生成规则<textarea class="seg-rule">${escapeHtml(seg.rule || '')}</textarea></label>`;
     wrap.appendChild(card);
@@ -203,10 +242,11 @@ function syncSegmentsFromDom() {
   state.segments = cards.map((card, i) => ({
     id: card.dataset.id,
     enabled: card.querySelector('.seg-enabled').checked,
-    name: card.querySelector('.seg-name').value.trim() || `自定义片段${i + 1}`,
+    name: card.querySelector('.seg-name').value.trim() || `标题 ${String(i + 1).padStart(2, '0')}`,
     prefix: card.querySelector('.seg-prefix').value,
-    joinBefore: i === 0 && cards.length > 1 ? false : card.querySelector('.seg-join').checked,
-    connector: i === 0 && cards.length > 1 ? '' : card.querySelector('.seg-connector').value,
+    joinBefore: false,
+    suffix: card.querySelector('.seg-suffix').value,
+    connector: card.querySelector('.seg-suffix').value,
     rule: card.querySelector('.seg-rule').value.trim(),
   }));
 }
@@ -229,9 +269,8 @@ function deleteSegment(id) {
 function updatePatternPreview() {
   const parts = [];
   for (const seg of state.segments.filter((s) => s.enabled)) {
-    const token = `${seg.prefix || ''}${seg.name || '片段'}`;
-    if (!parts.length) parts.push(token);
-    else parts.push(`${seg.joinBefore ? (seg.connector || '') : ''}${token}`);
+    const token = `${seg.prefix || ''}${seg.name || '标题'}${seg.suffix ?? seg.connector ?? ''}`;
+    parts.push(token);
   }
   $('#patternPreview').textContent = parts.join('') || '未启用任何名称段';
 }
@@ -351,7 +390,7 @@ function combineOutputs(outputs) {
   let final = '';
   outputs.forEach(({ seg, value }, i) => {
     const part = `${seg.prefix || ''}${value}`;
-    final += i === 0 ? part : `${seg.joinBefore ? (seg.connector || '') : ''}${part}`;
+    final += `${part}${seg.suffix ?? seg.connector ?? ''}`;
   });
   return sanitizeFileName(final).slice(0, 180);
 }

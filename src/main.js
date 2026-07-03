@@ -4,6 +4,7 @@ const fs = require('fs/promises');
 const fsSync = require('fs');
 const http = require('http');
 const https = require('https');
+const { execFile } = require('child_process');
 
 const VIDEO_EXTS = new Set(['.mp4', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm', '.m4v']);
 
@@ -100,6 +101,14 @@ ipcMain.handle('file:rename', async (_event, { filePath, newBaseName }) => {
   await fs.rename(filePath, target);
   return target;
 });
+
+
+ipcMain.handle('ollama:installed', async () => new Promise((resolve) => {
+  execFile('ollama', ['--version'], { timeout: 5000 }, (error, stdout, stderr) => {
+    if (error) return resolve({ installed: false });
+    resolve({ installed: true, version: String(stdout || stderr || '').trim() });
+  });
+}));
 
 ipcMain.handle('ollama:tags', async (_event, { baseUrl, timeout = 10000 }) => {
   const data = await requestJson(`${String(baseUrl).replace(/\/$/, '')}/api/tags`, null, timeout);

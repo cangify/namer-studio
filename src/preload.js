@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('aglove', {
   loadSettings: () => ipcRenderer.invoke('settings:load'),
   saveSettings: (data) => ipcRenderer.invoke('settings:save', data),
   renameFile: (data) => ipcRenderer.invoke('file:rename', data),
+  ollamaInstalled: () => ipcRenderer.invoke('ollama:installed'),
   ollamaTags: (data) => ipcRenderer.invoke('ollama:tags', data),
   ollamaGenerate: (data) => ipcRenderer.invoke('ollama:generate', data),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
