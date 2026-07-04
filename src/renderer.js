@@ -98,6 +98,7 @@ function buttonFeedbackText(button) {
     addSegmentBtn: '已添加标题段',
     loadModelsBtn: '正在加载 Ollama 模型…',
     checkUpdateBtn: '正在检查软件更新…',
+    aboutCheckUpdateBtn: '正在检查软件更新…',
     cangifySiteBtn: '正在打开官网…',
     ollamaNoticeBtn: '正在打开 Ollama 官网…',
   };
@@ -147,6 +148,7 @@ function bindButtons() {
   $('#resumeBtn').addEventListener('click', resumeProcessing);
   $('#loadModelsBtn').addEventListener('click', loadModels);
   $('#checkUpdateBtn')?.addEventListener('click', () => checkSoftwareUpdate({ silent: false }));
+  $('#aboutCheckUpdateBtn')?.addEventListener('click', () => checkSoftwareUpdate({ silent: false }));
   $('#downloadUpdateBtn')?.addEventListener('click', downloadUpdate);
   $('#copyUpdateLinkBtn')?.addEventListener('click', copyUpdateLink);
   $('#closeUpdateDialogBtn')?.addEventListener('click', closeUpdateDialog);
@@ -249,8 +251,8 @@ function bindDropImport() {
 }
 
 async function checkSoftwareUpdate({ silent = false } = {}) {
-  const btn = $('#checkUpdateBtn');
-  if (btn && !silent) btn.disabled = true;
+  const buttons = ['#checkUpdateBtn', '#aboutCheckUpdateBtn'].map((sel) => $(sel)).filter(Boolean);
+  if (!silent) buttons.forEach((button) => { button.disabled = true; });
   try {
     const info = await window.aglove.checkUpdate();
     state.updateInfo = info;
@@ -265,7 +267,7 @@ async function checkSoftwareUpdate({ silent = false } = {}) {
     log(`检查更新失败：${err.message}`);
     if (!silent) showToast(`检查更新失败：${err.message}`);
   } finally {
-    if (btn) btn.disabled = false;
+    buttons.forEach((button) => { button.disabled = false; });
   }
 }
 
