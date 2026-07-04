@@ -646,3 +646,89 @@ td.status {
 .analyze-toolbar .btn.primary {
   min-width: 92px;
 }
+
+/* 2026-07 compact designer command bar */
+.command-bar {
+  padding: 13px 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  overflow: visible;
+}
+.command-left,
+.command-right {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.command-left {
+  flex: 1;
+  flex-wrap: wrap;
+}
+.command-right {
+  flex: 0 0 auto;
+}
+.command-divider {
+  width: 1px;
+  height: 28px;
+  background: rgba(232,224,216,.95);
+  margin: 0 3px;
+}
+.command-bar .btn {
+  padding: 9px 13px;
+  border-radius: 13px;
+  white-space: nowrap;
+}
+.command-bar .auto-rename-check {
+  margin-left: 0;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+.more-actions {
+  position: relative;
+  z-index: 20;
+}
+.more-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 188px;
+  padding: 8px;
+  border: 1px solid rgba(232,224,216,.98);
+  border-radius: 16px;
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 22px 60px rgba(45,35,27,.16);
+  backdrop-filter: blur(12px);
+}
+.more-menu button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  border-radius: 11px;
+  padding: 9px 10px;
+  text-align: left;
+  color: #4f4842;
+  font-weight: 800;
+  cursor: pointer;
+}
+.more-menu button:hover {
+  background: rgba(124,77,255,.08);
+  color: var(--primary-2);
+}
+.more-menu button.danger {
+  color: var(--danger);
+}
+.more-menu button.danger:hover {
+  background: rgba(216,70,70,.08);
+}
+.import-toolbar,
+.analyze-toolbar,
+.list-toolbar {
+  display: none !important;
+}
+@media (max-width: 1180px) {
+  .command-bar { align-items: flex-start; }
+  .command-right { margin-left: auto; }
+}

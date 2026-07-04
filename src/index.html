@@ -37,29 +37,31 @@
       </header>
 
       <section id="videos" class="page active">
-        <div class="card toolbar import-toolbar">
-          <div class="toolbar-title">导入</div>
-          <button id="addVideosBtn" class="btn">添加视频</button>
-          <button id="addFolderBtn" class="btn">添加文件夹</button>
-          <span class="toolbar-hint">也可以直接把视频或文件夹拖进来</span>
-        </div>
-        <div class="card toolbar analyze-toolbar">
-          <div class="toolbar-title">分析与改名</div>
-          <button id="startBtn" class="btn primary">开始分析</button>
-          <button id="pauseBtn" class="btn ghost">暂停</button>
-          <button id="resumeBtn" class="btn ghost">继续</button>
-          <button id="reanalyzeSelectedBtn" class="btn ghost">重新分析选中</button>
-          <button id="retryFailedBtn" class="btn ghost">重试失败/未命名</button>
-          <button id="renameGeneratedBtn" class="btn ghost">修改名称</button>
-          <label class="check auto-rename-check"><input id="autoRename" type="checkbox" /> <span>生成后自动重命名</span></label>
-        </div>
-        <div class="card toolbar list-toolbar">
-          <div class="toolbar-title">选择与列表</div>
-          <button id="invertSelectionBtn" class="btn ghost">反选</button>
-          <button id="selectFailedBtn" class="btn ghost">选失败/未命名</button>
-          <button id="removeSelectedBtn" class="btn ghost">移除选中</button>
-          <button id="deleteSelectedFilesBtn" class="btn ghost danger">删除选中文件</button>
-          <button id="clearBtn" class="btn ghost">清空列表</button>
+        <div class="card command-bar">
+          <div class="command-left">
+            <button id="addVideosBtn" class="btn">添加视频</button>
+            <button id="addFolderBtn" class="btn">添加文件夹</button>
+            <span class="command-divider"></span>
+            <button id="startBtn" class="btn primary">开始分析</button>
+            <button id="renameGeneratedBtn" class="btn ghost">修改名称</button>
+            <button id="retryFailedBtn" class="btn ghost">重试失败</button>
+          </div>
+          <div class="command-right">
+            <label class="check auto-rename-check"><input id="autoRename" type="checkbox" /> <span>自动重命名</span></label>
+            <div class="more-actions">
+              <button id="moreActionsBtn" class="btn ghost" type="button">更多操作 ▾</button>
+              <div id="moreActionsMenu" class="more-menu" hidden>
+                <button id="pauseBtn" type="button">暂停</button>
+                <button id="resumeBtn" type="button">继续</button>
+                <button id="reanalyzeSelectedBtn" type="button">重新分析选中</button>
+                <button id="invertSelectionBtn" type="button">反选</button>
+                <button id="selectFailedBtn" type="button">选失败/未命名</button>
+                <button id="removeSelectedBtn" type="button">移除选中</button>
+                <button id="deleteSelectedFilesBtn" class="danger" type="button">删除选中文件</button>
+                <button id="clearBtn" type="button">清空列表</button>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="card table-card">
           <div class="table-head">

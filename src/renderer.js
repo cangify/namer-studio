@@ -76,6 +76,7 @@ function buttonFeedbackText(button) {
     renameGeneratedBtn: '正在修改已生成名称…',
     reanalyzeSelectedBtn: '重新分析选中视频…',
     retryFailedBtn: '重试失败或未命名视频…',
+    moreActionsBtn: '更多操作',
     pauseBtn: '已请求暂停',
     resumeBtn: '继续处理',
     invertSelectionBtn: '已反选列表',
@@ -123,7 +124,7 @@ function bindButtons() {
   $('#addFolderBtn').addEventListener('click', async () => addPaths(await window.aglove.pickFolder()));
   $('#removeSelectedBtn').addEventListener('click', removeSelected);
   $('#deleteSelectedFilesBtn').addEventListener('click', deleteSelectedFiles);
-  $('#clearBtn').addEventListener('click', () => { state.videos = []; renderVideos(); showToast('列表已清空'); });
+  $('#clearBtn').addEventListener('click', () => { closeMoreActions(); state.videos = []; renderVideos(); showToast('列表已清空'); });
   $('#invertSelectionBtn').addEventListener('click', invertSelection);
   $('#selectFailedBtn').addEventListener('click', selectFailedOrUnnamed);
   $('#addSegmentBtn').addEventListener('click', addSegment);
@@ -135,7 +136,28 @@ function bindButtons() {
   $('#pauseBtn').addEventListener('click', pauseProcessing);
   $('#resumeBtn').addEventListener('click', resumeProcessing);
   $('#loadModelsBtn').addEventListener('click', loadModels);
+  $('#moreActionsBtn').addEventListener('click', toggleMoreActions);
+  document.addEventListener('click', closeMoreActionsOnOutside);
   $('#cangifySiteBtn')?.addEventListener('click', () => window.aglove.openExternal('https://cangify.com'));
+}
+
+function toggleMoreActions(event) {
+  event?.stopPropagation();
+  const menu = $('#moreActionsMenu');
+  if (!menu) return;
+  menu.hidden = !menu.hidden;
+}
+
+function closeMoreActionsOnOutside(event) {
+  const menu = $('#moreActionsMenu');
+  const wrap = $('.more-actions');
+  if (!menu || menu.hidden || wrap?.contains(event.target)) return;
+  menu.hidden = true;
+}
+
+function closeMoreActions() {
+  const menu = $('#moreActionsMenu');
+  if (menu) menu.hidden = true;
 }
 
 function setModelOptions(models, selected) {
@@ -366,16 +388,19 @@ function stopUiTimer() {
 }
 
 function invertSelection() {
+  closeMoreActions();
   state.videos.forEach((v) => { v.selected = !v.selected; });
   renderVideos();
 }
 
 function selectFailedOrUnnamed() {
+  closeMoreActions();
   state.videos.forEach((v) => { v.selected = v.status === '失败' || !v.newName; });
   renderVideos();
 }
 
 async function deleteSelectedFiles() {
+  closeMoreActions();
   const selected = state.videos.filter((v) => v.selected);
   if (!selected.length) return showToast('请先选择要删除的文件');
   if (!confirm(`确定要把 ${selected.length} 个视频文件移到回收站吗？`)) return;
@@ -393,12 +418,14 @@ async function deleteSelectedFiles() {
 }
 
 function pauseProcessing() {
+  closeMoreActions();
   if (!state.processing) return;
   state.paused = true;
   log('已暂停。当前正在请求 Ollama 的任务会先等本次请求返回，再暂停后续任务。');
 }
 
 function resumeProcessing() {
+  closeMoreActions();
   state.paused = false;
   showToast('已继续');
 }
@@ -449,6 +476,7 @@ async function renameGeneratedFiles() {
 }
 
 function reanalyzeSelected() {
+  closeMoreActions();
   const targets = state.videos.filter((v) => v.selected);
   targets.forEach(resetForReprocess);
   renderVideos();
@@ -456,6 +484,7 @@ function reanalyzeSelected() {
 }
 
 function retryFailedOrUnnamed() {
+  closeMoreActions();
   const targets = state.videos.filter((v) => v.status === '失败' || !v.newName);
   targets.forEach((v) => { v.selected = true; resetForReprocess(v); });
   renderVideos();
@@ -463,6 +492,7 @@ function retryFailedOrUnnamed() {
 }
 
 function removeSelected() {
+  closeMoreActions();
   const before = state.videos.length;
   state.videos = state.videos.filter((v) => !v.selected);
   renderVideos();
