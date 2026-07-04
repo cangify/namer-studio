@@ -47,6 +47,7 @@ function init() {
   bindButtonFeedback();
   bindNav();
   bindButtons();
+  bindDropImportBridge();
   bindDropImport();
   bindColumnResize();
   checkOllamaInstall();
@@ -178,6 +179,26 @@ function setOllamaNotice(type, html) {
   notice.innerHTML = html;
 }
 
+function bindDropImportBridge() {
+  window.addEventListener('message', async (event) => {
+    const data = event.data;
+    if (!data || data.type !== 'aglove:dropped-paths' || !Array.isArray(data.paths)) return;
+    await importDroppedPaths(data.paths);
+  });
+}
+
+async function importDroppedPaths(rawPaths) {
+  if (!rawPaths.length) return showToast('没有识别到可导入的视频');
+  try {
+    const paths = await window.aglove.resolveDropped(rawPaths);
+    addPaths(paths);
+    showToast(paths.length ? `已拖入 ${paths.length} 个视频` : '没有找到可导入的视频');
+  } catch (err) {
+    showToast('拖拽导入失败');
+    log(`拖拽导入失败：${err.message}`);
+  }
+}
+
 function bindDropImport() {
   const shell = $('.app-shell');
   if (!shell) return;
@@ -200,16 +221,10 @@ function bindDropImport() {
     event.preventDefault();
     dragDepth = 0;
     shell.classList.remove('drag-over');
-    const rawPaths = window.aglove.droppedFilePaths(event.dataTransfer.files);
-    if (!rawPaths.length) return showToast('没有识别到可导入的视频');
-    try {
-      const paths = await window.aglove.resolveDropped(rawPaths);
-      addPaths(paths);
-      showToast(paths.length ? `已拖入 ${paths.length} 个视频` : '没有找到可导入的视频');
-    } catch (err) {
-      showToast('拖拽导入失败');
-      log(`拖拽导入失败：${err.message}`);
-    }
+    let rawPaths = [];
+    try { rawPaths = window.aglove.droppedFilePaths(event.dataTransfer.files); } catch (_) {}
+    if (rawPaths.length) await importDroppedPaths(rawPaths);
+    else showToast('正在读取拖拽文件路径…');
   });
 }
 

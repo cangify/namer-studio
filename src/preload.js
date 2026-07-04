@@ -14,3 +14,14 @@ contextBridge.exposeInMainWorld('aglove', {
   ollamaGenerate: (data) => ipcRenderer.invoke('ollama:generate', data),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
 });
+
+window.addEventListener('drop', (event) => {
+  try {
+    const paths = Array.from(event.dataTransfer?.files || [])
+      .map((file) => webUtils.getPathForFile(file))
+      .filter(Boolean);
+    if (paths.length) {
+      window.postMessage({ type: 'aglove:dropped-paths', paths }, '*');
+    }
+  } catch (_) {}
+}, true);
