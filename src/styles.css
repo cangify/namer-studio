@@ -770,7 +770,9 @@ td.status {
   -ms-overflow-style: none;
 }
 #rules.page.active {
-  display: block !important;
+  display: flex !important;
+  flex-direction: column;
+  gap: 16px;
 }
 #rules.page::-webkit-scrollbar {
   width: 0 !important;
