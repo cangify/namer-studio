@@ -424,3 +424,52 @@ input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 4p
   visibility: visible !important;
   opacity: 1 !important;
 }
+
+/* 2026-07 polish: hide scrollbars, clean segment gaps, use logo */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+.brand-logo {
+  width: 46px;
+  height: 46px;
+  border-radius: 17px;
+  object-fit: cover;
+  box-shadow: 0 12px 28px rgba(124, 77, 255, .20);
+  flex: 0 0 auto;
+}
+.brand-mark { display: none; }
+.page,
+.table-wrap,
+#logText {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.segments {
+  background: transparent;
+}
+.segment.card {
+  background: #fff;
+  box-shadow: none;
+  border-color: rgba(232,224,216,.95);
+}
+.segment-head {
+  background: #fff;
+}
+.segment-body {
+  background: #fff;
+}
+.card.table-card,
+.rules-intro,
+.preview-card,
+.form-grid,
+.hint-card,
+.log-card,
+.about-hero {
+  box-shadow: 0 14px 36px rgba(67, 48, 36, .06);
+}

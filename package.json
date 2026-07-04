@@ -33,12 +33,14 @@
     "win": {
       "target": [
         "zip"
-      ]
+      ],
+      "icon": "src/assets/logo.ico"
     },
     "linux": {
       "target": [
         "AppImage"
-      ]
+      ],
+      "icon": "src/assets/logo-256.png"
     }
   }
 }

@@ -17,6 +17,7 @@ function createWindow() {
     title: 'Ai视频自动命名工具',
     autoHideMenuBar: true,
     backgroundColor: '#f6f7fb',
+    icon: path.join(__dirname, 'assets', 'logo-256.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
