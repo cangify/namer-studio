@@ -177,7 +177,7 @@ ipcMain.handle('ollama:generate', async (_event, { baseUrl, model, prompt, image
 
 ipcMain.handle('ads:getSidebarAd', async () => {
   try {
-    const data = await requestJson(SIDEBAR_AD_URL, null, 10000);
+    const data = await requestJson(withCacheBuster(SIDEBAR_AD_URL, '_ad_json_v'), null, 10000);
     return normalizeSidebarAd(data);
   } catch (err) {
     return {
@@ -311,13 +311,22 @@ function normalizeAdItem(ad, version) {
 
 function normalizeAdUrl(value, addVersion, version) {
   try {
-    const target = new URL(String(value || ''));
+    let raw = String(value || '').trim();
+    if (!raw) return '';
+    if (/^www\./i.test(raw) || /^[a-z0-9.-]+\//i.test(raw)) raw = `https://${raw}`;
+    const target = new URL(raw);
     if (!['https:', 'http:'].includes(target.protocol)) return '';
     if (addVersion && version) target.searchParams.set('_fo_ad_v', version);
     return target.toString();
   } catch (_) {
     return '';
   }
+}
+
+function withCacheBuster(urlString, key) {
+  const target = new URL(urlString);
+  target.searchParams.set(key, String(Date.now()));
+  return target.toString();
 }
 
 function clampNumber(value, min, max, fallback) {
