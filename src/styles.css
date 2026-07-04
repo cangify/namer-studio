@@ -759,13 +759,19 @@ td.status {
 
 /* 2026-07 hotfix: rules page must scroll when title 03/04 push settings below the fold */
 #rules.page {
-  overflow-y: auto;
-  overflow-x: hidden;
+  min-height: 0 !important;
+  max-height: calc(100vh - 118px);
+  overflow-y: scroll !important;
+  overflow-x: hidden !important;
   padding-right: 10px;
+  padding-bottom: 28px;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: rgba(124,77,255,.42) transparent;
   -ms-overflow-style: auto;
+}
+#rules.page.active {
+  display: block !important;
 }
 #rules.page::-webkit-scrollbar {
   display: block !important;
