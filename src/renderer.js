@@ -73,11 +73,27 @@ function bindButtons() {
   $('#cangifySiteBtn')?.addEventListener('click', () => window.aglove.openExternal('https://cangify.com'));
 }
 
+function setModelOptions(models, selected) {
+  const select = $('#modelName');
+  const current = selected || select.value || 'llava';
+  const unique = [...new Set([...(models || []), current].filter(Boolean))];
+  select.innerHTML = unique.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join('');
+  select.value = unique.includes(current) ? current : (unique[0] || 'llava');
+}
+
+function setOllamaNotice(type, html) {
+  const notice = $('#ollamaInstallNotice');
+  if (!notice) return;
+  notice.hidden = false;
+  notice.className = `ollama-notice ${type || ''}`.trim();
+  notice.innerHTML = html;
+}
+
 async function loadSettings() {
   const data = await window.aglove.loadSettings();
   if (!data) return;
   $('#ollamaUrl').value = data.ollamaUrl || 'http://127.0.0.1:11434';
-  $('#modelName').value = data.modelName || 'llava';
+  setModelOptions([], data.modelName || 'llava');
   $('#shotCount').value = data.shotCount || 5;
   $('#timeoutSec').value = data.timeoutSec || 900;
   $('#autoRename').checked = !!data.autoRename;
@@ -110,17 +126,15 @@ async function checkOllamaInstall() {
   try {
     const result = await window.aglove.ollamaInstalled();
     if (!result.installed) {
-      notice.hidden = false;
-      notice.innerHTML = '当前电脑还没有检测到 Ollama。请先前往 <button id="ollamaNoticeBtn" class="link-button" type="button">Ollama 官网</button> 下载并安装，然后回到这里加载模型。';
+      setOllamaNotice('warn', '当前电脑还没有检测到 Ollama。请先前往 <button id="ollamaNoticeBtn" class="link-button" type="button">Ollama 官网</button> 下载并安装，然后回到这里加载模型。');
       $('#ollamaNoticeBtn')?.addEventListener('click', () => window.aglove.openExternal('https://ollama.com'));
       log('未检测到 Ollama，请先安装后再加载模型。');
     } else {
-      notice.hidden = true;
+      setOllamaNotice('ok', `已检测到 Ollama${result.version ? `：${escapeHtml(result.version)}` : ''}。点击“加载模型”即可读取本机模型列表。`);
       if (result.version) log(`已检测到 Ollama：${result.version}`);
     }
   } catch (_) {
-    notice.hidden = false;
-    notice.textContent = '未能检测 Ollama 安装状态。如无法加载模型，请先确认 Ollama 已安装并正在运行。';
+    setOllamaNotice('warn', '未能检测 Ollama 安装状态。如无法加载模型，请先确认 Ollama 已安装并正在运行。');
   }
 }
 
@@ -145,10 +159,15 @@ async function loadModels() {
   try {
     const models = await window.aglove.ollamaTags({ baseUrl: $('#ollamaUrl').value.trim() });
     if (models.length) {
-      $('#modelName').value = models[0];
+      setModelOptions(models, $('#modelName').value || models[0]);
+      setOllamaNotice('ok', `已连接 Ollama，检测到 ${models.length} 个模型。请选择要使用的模型。`);
       log(`已加载模型：${models.join(', ')}`);
-    } else log('Ollama 没有返回模型列表。');
+    } else {
+      setOllamaNotice('warn', '已连接 Ollama，但没有检测到可用模型。请先在 Ollama 中下载视觉模型。');
+      log('Ollama 没有返回模型列表。');
+    }
   } catch (err) {
+    setOllamaNotice('warn', `加载模型失败：${escapeHtml(err.message)}。请确认 Ollama 已启动，地址填写正确。`);
     log(`加载模型失败：${err.message}`);
   }
 }
