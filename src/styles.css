@@ -733,11 +733,12 @@ td.status {
   .command-right { margin-left: auto; }
 }
 
-/* 2026-07 hotfix: keep more menu above table/card layers */
-.main,
-.page.active,
-.command-bar,
-.table-card {
+/* 2026-07 hotfix: keep more menu above table/card layers without disabling page scroll */
+.main {
+  min-height: 0;
+}
+#videos .command-bar,
+#videos .table-card {
   overflow: visible;
 }
 .command-bar {
@@ -754,6 +755,29 @@ td.status {
 }
 .more-menu {
   z-index: 9999;
+}
+
+/* 2026-07 hotfix: rules page must scroll when title 03/04 push settings below the fold */
+#rules.page {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 10px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124,77,255,.42) transparent;
+  -ms-overflow-style: auto;
+}
+#rules.page::-webkit-scrollbar {
+  display: block !important;
+  width: 10px !important;
+  height: 10px !important;
+}
+#rules.page::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(124,77,255,.34);
+}
+#rules.page::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* 2026-07 hotfix: column resize should not redistribute other columns */
