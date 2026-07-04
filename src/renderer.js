@@ -12,6 +12,7 @@ const state = {
   sidebarAdIndex: 0,
   sidebarAdRotateTimer: null,
   sidebarAdRefreshTimer: null,
+  updateInfo: null,
 };
 
 const pageMeta = {
@@ -59,6 +60,7 @@ function init() {
   renderVideos();
   loadSettings();
   loadSidebarAd();
+  setTimeout(() => checkSoftwareUpdate({ silent: true }), 1200);
   log('软件已启动。Ai 视频自动命名工具已就绪。');
 }
 
@@ -95,6 +97,7 @@ function buttonFeedbackText(button) {
     clearBtn: '已清空列表',
     addSegmentBtn: '已添加标题段',
     loadModelsBtn: '正在加载 Ollama 模型…',
+    checkUpdateBtn: '正在检查软件更新…',
     cangifySiteBtn: '正在打开官网…',
     ollamaNoticeBtn: '正在打开 Ollama 官网…',
   };
@@ -143,6 +146,11 @@ function bindButtons() {
   $('#pauseBtn').addEventListener('click', pauseProcessing);
   $('#resumeBtn').addEventListener('click', resumeProcessing);
   $('#loadModelsBtn').addEventListener('click', loadModels);
+  $('#checkUpdateBtn')?.addEventListener('click', () => checkSoftwareUpdate({ silent: false }));
+  $('#downloadUpdateBtn')?.addEventListener('click', downloadUpdate);
+  $('#copyUpdateLinkBtn')?.addEventListener('click', copyUpdateLink);
+  $('#closeUpdateDialogBtn')?.addEventListener('click', closeUpdateDialog);
+  $('#updateDialog')?.addEventListener('click', (event) => { if (event.target.id === 'updateDialog') closeUpdateDialog(); });
   $('#moreActionsBtn').addEventListener('click', toggleMoreActions);
   document.addEventListener('click', closeMoreActionsOnOutside);
   $('#cangifySiteBtn')?.addEventListener('click', () => window.aglove.openExternal('https://cangify.com'));
@@ -238,6 +246,68 @@ function bindDropImport() {
     if (rawPaths.length) await importDroppedPaths(rawPaths);
     else showToast('正在读取拖拽文件路径…');
   });
+}
+
+async function checkSoftwareUpdate({ silent = false } = {}) {
+  const btn = $('#checkUpdateBtn');
+  if (btn && !silent) btn.disabled = true;
+  try {
+    const info = await window.aglove.checkUpdate();
+    state.updateInfo = info;
+    if (info?.hasUpdate) {
+      showUpdateDialog(info);
+      log(`发现新版本：${info.latestVersion}（当前 ${info.currentVersion}）。`);
+    } else {
+      log(`软件已是最新版本：${info?.currentVersion || ''}`);
+      if (!silent) showToast('当前已是最新版本');
+    }
+  } catch (err) {
+    log(`检查更新失败：${err.message}`);
+    if (!silent) showToast(`检查更新失败：${err.message}`);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function showUpdateDialog(info) {
+  const dialog = $('#updateDialog');
+  const body = $('#updateDialogBody');
+  if (!dialog || !body) return;
+  const notes = Array.isArray(info.notes) && info.notes.length
+    ? `<ul>${info.notes.map((note) => `<li>${escapeHtml(note)}</li>`).join('')}</ul>`
+    : '<p class="muted-line">暂无更新说明。</p>';
+  body.innerHTML = `
+    <div class="update-version-line">
+      <span>当前版本：<b>${escapeHtml(info.currentVersion || '')}</b></span>
+      <span>最新版本：<b>${escapeHtml(info.latestVersion || '')}</b></span>
+    </div>
+    ${info.releaseDate ? `<div class="muted-line">发布日期：${escapeHtml(info.releaseDate)}</div>` : ''}
+    ${info.mandatory ? '<div class="update-required">这是一个重要更新，建议尽快下载。</div>' : ''}
+    <div class="update-notes"><b>更新说明</b>${notes}</div>
+    <div class="update-url">${escapeHtml(info.downloadUrl || info.homepage || '')}</div>`;
+  dialog.hidden = false;
+}
+
+function closeUpdateDialog() {
+  const dialog = $('#updateDialog');
+  if (dialog) dialog.hidden = true;
+}
+
+function downloadUpdate() {
+  const url = state.updateInfo?.downloadUrl || state.updateInfo?.homepage;
+  if (!url) return showToast('没有可用的下载链接');
+  window.aglove.openExternal(url).catch((err) => showToast(`打开下载链接失败：${err.message}`));
+}
+
+async function copyUpdateLink() {
+  const url = state.updateInfo?.downloadUrl || state.updateInfo?.homepage || '';
+  if (!url) return showToast('没有可复制的下载链接');
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('下载链接已复制');
+  } catch (_) {
+    showToast(url);
+  }
 }
 
 async function loadSidebarAd() {

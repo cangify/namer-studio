@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('aglove', {
   ollamaTags: (data) => ipcRenderer.invoke('ollama:tags', data),
   ollamaGenerate: (data) => ipcRenderer.invoke('ollama:generate', data),
   getSidebarAd: () => ipcRenderer.invoke('ads:getSidebarAd'),
+  checkUpdate: () => ipcRenderer.invoke('update:check'),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
 });
 

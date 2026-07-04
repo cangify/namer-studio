@@ -102,6 +102,13 @@
           <label>模型<div class="model-line"><select id="modelName"><option value="llava">llava</option></select><button id="loadModelsBtn" class="btn ghost">加载模型</button></div></label>
           <label>截图数量<input id="shotCount" type="number" min="1" max="12" value="5" /></label>
           <label>请求超时（秒）<input id="timeoutSec" type="number" min="60" step="60" value="900" /></label>
+          <div class="update-check-card">
+            <div>
+              <b>软件更新</b>
+              <span>检查线上版本并打开浏览器下载新版。</span>
+            </div>
+            <button id="checkUpdateBtn" class="btn ghost" type="button">检查软件更新</button>
+          </div>
         </div>
         <div class="card hint-card">
           <b>提示：</b>视觉大模型建议用 5 张截图、900 秒超时。标题会被硬校验，不符合规则会自动重试，不会直接采用脏结果。
@@ -134,6 +141,23 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <div id="updateDialog" class="modal-backdrop" hidden>
+    <div class="modal-card update-dialog" role="dialog" aria-modal="true" aria-labelledby="updateDialogTitle">
+      <div class="modal-head">
+        <div>
+          <div class="eyebrow">UPDATE</div>
+          <h2 id="updateDialogTitle">发现新版本</h2>
+        </div>
+        <button id="closeUpdateDialogBtn" class="icon-btn" type="button" aria-label="关闭">×</button>
+      </div>
+      <div id="updateDialogBody" class="update-dialog-body"></div>
+      <div class="modal-actions">
+        <button id="copyUpdateLinkBtn" class="btn ghost" type="button">复制链接</button>
+        <button id="downloadUpdateBtn" class="btn primary" type="button">下载更新</button>
+      </div>
+    </div>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

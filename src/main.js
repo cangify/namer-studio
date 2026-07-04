@@ -8,6 +8,7 @@ const { execFile } = require('child_process');
 
 const VIDEO_EXTS = new Set(['.mp4', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm', '.m4v']);
 const SIDEBAR_AD_URL = 'https://cangify.com/globle/ads/namer-studio/namer-studio.json';
+const UPDATE_FEED_URL = 'https://cangify.com/globle/update/namer-studio.json';
 const DEFAULT_AD_REFRESH_SECONDS = 300;
 
 function createWindow() {
@@ -192,6 +193,8 @@ ipcMain.handle('ads:getSidebarAd', async () => {
   }
 });
 
+ipcMain.handle('update:check', async () => checkUpdate());
+
 function cleanModelText(text) {
   return String(text || '')
     .replace(/<think>[\s\S]*?<\/think>/gi, ' ')
@@ -282,6 +285,49 @@ function requestJson(urlString, payload, timeout) {
     if (body) req.write(body);
     req.end();
   });
+}
+
+async function checkUpdate() {
+  const currentVersion = app.getVersion();
+  const data = await requestJson(withCacheBuster(UPDATE_FEED_URL, '_update_json_v'), null, 10000);
+  const latestVersion = String(data?.latest_version || data?.version || data?.latestVersion || '').replace(/^v/i, '').trim();
+  const downloadUrl = normalizeDownloadUrl(data?.download_url || data?.windows_download_url || data?.url || data?.homepage || '');
+  const releaseDate = String(data?.release_date || data?.releaseDate || '').trim();
+  const notes = Array.isArray(data?.notes) ? data.notes.map((n) => String(n).trim()).filter(Boolean).slice(0, 20) : [];
+  const hasUpdate = latestVersion ? compareVersions(latestVersion, currentVersion) > 0 : false;
+  return {
+    hasUpdate,
+    currentVersion,
+    latestVersion: latestVersion || currentVersion,
+    releaseDate,
+    mandatory: !!data?.mandatory,
+    downloadUrl,
+    homepage: normalizeDownloadUrl(data?.homepage || 'https://cangify.com'),
+    notes,
+  };
+}
+
+function compareVersions(a, b) {
+  const left = versionParts(a);
+  const right = versionParts(b);
+  const len = Math.max(left.length, right.length, 1);
+  for (let i = 0; i < len; i += 1) {
+    const diff = (left[i] || 0) - (right[i] || 0);
+    if (diff) return diff > 0 ? 1 : -1;
+  }
+  return 0;
+}
+
+function versionParts(value) {
+  return String(value || '0')
+    .replace(/^v/i, '')
+    .split(/[^0-9]+/)
+    .filter(Boolean)
+    .map((n) => Number(n) || 0);
+}
+
+function normalizeDownloadUrl(value) {
+  return normalizeAdUrl(value, false, '');
 }
 
 function normalizeSidebarAd(data) {
