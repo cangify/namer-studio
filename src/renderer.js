@@ -73,7 +73,7 @@ function buttonFeedbackText(button) {
   const map = {
     saveSettingsBtn: '正在保存设置…',
     startBtn: '开始处理视频…',
-    startBtn2: '开始处理视频…',
+    renameGeneratedBtn: '正在修改已生成名称…',
     reanalyzeSelectedBtn: '重新分析选中视频…',
     retryFailedBtn: '重试失败或未命名视频…',
     pauseBtn: '已请求暂停',
@@ -129,7 +129,7 @@ function bindButtons() {
   $('#addSegmentBtn').addEventListener('click', addSegment);
   $('#saveSettingsBtn').addEventListener('click', saveSettings);
   $('#startBtn').addEventListener('click', () => startProcessing({ targets: state.videos.filter((v) => v.selected) }));
-  $('#startBtn2').addEventListener('click', () => startProcessing({ targets: state.videos.filter((v) => v.selected) }));
+  $('#renameGeneratedBtn').addEventListener('click', renameGeneratedFiles);
   $('#reanalyzeSelectedBtn').addEventListener('click', reanalyzeSelected);
   $('#retryFailedBtn').addEventListener('click', retryFailedOrUnnamed);
   $('#pauseBtn').addEventListener('click', pauseProcessing);
@@ -416,6 +416,38 @@ function resetForReprocess(item) {
   item.elapsedMs = 0;
 }
 
+
+async function renameGeneratedFiles() {
+  if (state.processing) return showToast('正在分析中，完成后再修改名称');
+  const targets = state.videos.filter((v) => v.selected && v.newName && v.status !== '已重命名');
+  if (!targets.length) {
+    showToast('没有可修改名称的视频');
+    return log('没有可修改名称的视频。请先分析生成新名称，并勾选要修改的视频。');
+  }
+  if (!confirm(`确定要把 ${targets.length} 个已生成名称的视频重命名吗？`)) return;
+  let ok = 0;
+  for (const item of targets) {
+    try {
+      item.status = '重命名中';
+      item.startedAt = Date.now();
+      renderVideos();
+      const newPath = await window.aglove.renameFile({ filePath: item.path, newBaseName: item.newName });
+      item.path = newPath;
+      item.status = '已重命名';
+      item.elapsedMs += Date.now() - item.startedAt;
+      item.startedAt = null;
+      ok += 1;
+      log(`已修改名称：${newPath}`);
+    } catch (err) {
+      item.status = '失败';
+      if (item.startedAt) { item.elapsedMs += Date.now() - item.startedAt; item.startedAt = null; }
+      log(`修改名称失败：${baseName(item.path)}，原因：${err.message}`);
+    }
+  }
+  renderVideos();
+  showToast(`已修改 ${ok} 个视频名称`);
+}
+
 function reanalyzeSelected() {
   const targets = state.videos.filter((v) => v.selected);
   targets.forEach(resetForReprocess);
@@ -539,7 +571,6 @@ async function startProcessing({ targets } = {}) {
   state.processing = true;
   state.paused = false;
   $('#startBtn').disabled = true;
-  $('#startBtn2').disabled = true;
   startUiTimer();
   try {
     for (const item of targets) {
@@ -551,7 +582,6 @@ async function startProcessing({ targets } = {}) {
     state.processing = false;
     state.paused = false;
     $('#startBtn').disabled = false;
-    $('#startBtn2').disabled = false;
     stopUiTimer();
     renderVideos();
     log('处理完成。');
