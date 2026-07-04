@@ -44,6 +44,8 @@ function init() {
   bindButtonFeedback();
   bindNav();
   bindButtons();
+  bindDropImport();
+  bindColumnResize();
   checkOllamaInstall();
   renderSegments();
   renderVideos();
@@ -132,6 +134,72 @@ function setOllamaNotice(type, html) {
   notice.hidden = false;
   notice.className = `ollama-notice ${type || ''}`.trim();
   notice.innerHTML = html;
+}
+
+function bindDropImport() {
+  const shell = $('.app-shell');
+  if (!shell) return;
+  let dragDepth = 0;
+  shell.addEventListener('dragenter', (event) => {
+    event.preventDefault();
+    dragDepth += 1;
+    shell.classList.add('drag-over');
+  });
+  shell.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  });
+  shell.addEventListener('dragleave', (event) => {
+    event.preventDefault();
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (!dragDepth) shell.classList.remove('drag-over');
+  });
+  shell.addEventListener('drop', async (event) => {
+    event.preventDefault();
+    dragDepth = 0;
+    shell.classList.remove('drag-over');
+    const rawPaths = [...event.dataTransfer.files].map((file) => file.path).filter(Boolean);
+    if (!rawPaths.length) return showToast('没有识别到可导入的视频');
+    try {
+      const paths = await window.aglove.resolveDropped(rawPaths);
+      addPaths(paths);
+      showToast(paths.length ? `已拖入 ${paths.length} 个视频` : '没有找到可导入的视频');
+    } catch (err) {
+      showToast('拖拽导入失败');
+      log(`拖拽导入失败：${err.message}`);
+    }
+  });
+}
+
+function bindColumnResize() {
+  const table = $('#videoTable');
+  if (!table) return;
+  const colMap = { path: '.col-path', status: '.col-status', name: '.col-name' };
+  $$('.col-resizer').forEach((handle) => {
+    handle.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const th = handle.closest('th');
+      const key = th.dataset.col;
+      const col = table.querySelector(colMap[key]);
+      if (!col) return;
+      const startX = event.clientX;
+      const startWidth = col.getBoundingClientRect().width;
+      document.body.classList.add('resizing-columns');
+      const onMove = (moveEvent) => {
+        const width = Math.max(key === 'status' ? 90 : 150, startWidth + moveEvent.clientX - startX);
+        col.style.width = `${width}px`;
+      };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.classList.remove('resizing-columns');
+        showToast('列宽已调整');
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp, { once: true });
+    });
+  });
 }
 
 async function loadSettings() {

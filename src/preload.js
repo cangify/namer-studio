@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('aglove', {
   pickFolder: () => ipcRenderer.invoke('dialog:pickFolder'),
   loadSettings: () => ipcRenderer.invoke('settings:load'),
   saveSettings: (data) => ipcRenderer.invoke('settings:save', data),
+  resolveDropped: (paths) => ipcRenderer.invoke('files:resolveDropped', paths),
   renameFile: (data) => ipcRenderer.invoke('file:rename', data),
   ollamaInstalled: () => ipcRenderer.invoke('ollama:installed'),
   ollamaTags: (data) => ipcRenderer.invoke('ollama:tags', data),

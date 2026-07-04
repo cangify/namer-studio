@@ -51,8 +51,9 @@
             <span id="countBadge" class="badge">0 个视频</span>
           </div>
           <div class="table-wrap">
-            <table>
-              <thead><tr><th class="sel">选择</th><th>视频路径</th><th>状态</th><th>新名称</th></tr></thead>
+            <table id="videoTable">
+              <colgroup><col class="col-select"><col class="col-path"><col class="col-status"><col class="col-name"></colgroup>
+              <thead><tr><th class="sel">选择</th><th class="resizable" data-col="path">视频路径<span class="col-resizer"></span></th><th class="resizable" data-col="status">状态<span class="col-resizer"></span></th><th class="resizable" data-col="name">新名称<span class="col-resizer"></span></th></tr></thead>
               <tbody id="videoRows"></tbody>
             </table>
           </div>

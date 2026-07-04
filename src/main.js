@@ -90,6 +90,18 @@ ipcMain.handle('settings:save', async (_event, data) => {
   return configPath();
 });
 
+ipcMain.handle('files:resolveDropped', async (_event, paths) => {
+  const result = [];
+  for (const p of paths || []) {
+    try {
+      const stat = fsSync.statSync(p);
+      if (stat.isDirectory()) result.push(...walkVideos(p));
+      else if (stat.isFile() && VIDEO_EXTS.has(path.extname(p).toLowerCase())) result.push(p);
+    } catch (_) {}
+  }
+  return [...new Set(result)];
+});
+
 ipcMain.handle('file:rename', async (_event, { filePath, newBaseName }) => {
   const parsed = path.parse(filePath);
   const ext = parsed.ext.toLowerCase();
@@ -117,7 +129,8 @@ ipcMain.handle('ollama:tags', async (_event, { baseUrl, timeout = 10000 }) => {
 });
 
 ipcMain.handle('ollama:generate', async (_event, { baseUrl, model, prompt, images, timeout = 900000 }) => {
-  const payload = {
+  const cleanBase = String(baseUrl).replace(/\/$/, '');
+  const generatePayload = {
     model,
     prompt,
     images,
@@ -128,8 +141,27 @@ ipcMain.handle('ollama:generate', async (_event, { baseUrl, model, prompt, image
       num_predict: 768,
     },
   };
-  const data = await requestJson(`${String(baseUrl).replace(/\/$/, '')}/api/generate`, payload, timeout);
-  return String(data.response || '').trim();
+
+  const gen = await requestJson(`${cleanBase}/api/generate`, generatePayload, timeout);
+  const genText = String(gen.response || '').trim();
+  if (genText) return genText;
+
+  const chatPayload = {
+    model,
+    stream: false,
+    messages: [{ role: 'user', content: prompt, images }],
+    options: {
+      temperature: 0.1,
+      num_ctx: 16384,
+      num_predict: 768,
+    },
+  };
+  const chat = await requestJson(`${cleanBase}/api/chat`, chatPayload, timeout);
+  const chatText = String(chat.message?.content || chat.response || '').trim();
+  if (chatText) return chatText;
+
+  const reason = gen.done_reason || chat.done_reason || gen.error || chat.error || '';
+  throw new Error(`Ollama 没有返回内容${reason ? `（${reason}）` : ''}。请确认当前模型支持图片/视觉输入，建议选择 qwen3-vl 或其他视觉模型。`);
 });
 
 function requestJson(urlString, payload, timeout) {

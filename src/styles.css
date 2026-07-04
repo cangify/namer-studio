@@ -531,3 +531,61 @@ button.tap-feedback {
   opacity: 1;
   transform: translateY(0) scale(1);
 }
+
+/* 2026-07 drag import + resizable video table */
+.app-shell.drag-over::after {
+  content: "松开鼠标，导入视频或文件夹";
+  position: fixed;
+  inset: 18px;
+  z-index: 9998;
+  display: grid;
+  place-items: center;
+  border: 2px dashed rgba(124, 77, 255, .55);
+  border-radius: 30px;
+  background: rgba(255,255,255,.78);
+  color: var(--primary-2);
+  font-size: 22px;
+  font-weight: 950;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+#videoTable {
+  table-layout: fixed;
+}
+#videoTable .col-select { width: 58px; }
+#videoTable .col-path { width: 52%; }
+#videoTable .col-status { width: 130px; }
+#videoTable .col-name { width: 34%; }
+th.resizable {
+  position: sticky;
+  user-select: none;
+}
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 3;
+}
+.col-resizer::after {
+  content: "";
+  position: absolute;
+  top: 24%;
+  bottom: 24%;
+  left: 3px;
+  width: 2px;
+  border-radius: 999px;
+  background: rgba(124,77,255,.22);
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+th.resizable:hover .col-resizer::after,
+.resizing-columns .col-resizer::after {
+  opacity: 1;
+}
+.resizing-columns {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
