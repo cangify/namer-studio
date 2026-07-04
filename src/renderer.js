@@ -6,6 +6,7 @@ const state = {
   processing: false,
   paused: false,
   timer: null,
+  modelList: [],
   segments: defaultSegments(),
 };
 
@@ -164,6 +165,7 @@ function setModelOptions(models, selected) {
   const select = $('#modelName');
   const current = selected || select.value || 'llava';
   const unique = [...new Set([...(models || []), current].filter(Boolean))];
+  state.modelList = unique;
   select.innerHTML = unique.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join('');
   select.value = unique.includes(current) ? current : (unique[0] || 'llava');
 }
@@ -246,7 +248,7 @@ async function loadSettings() {
   const data = await window.aglove.loadSettings();
   if (!data) return;
   $('#ollamaUrl').value = data.ollamaUrl || 'http://127.0.0.1:11434';
-  setModelOptions([], data.modelName || 'llava');
+  setModelOptions(Array.isArray(data.modelList) ? data.modelList : [], data.modelName || 'llava');
   $('#shotCount').value = data.shotCount || 5;
   $('#timeoutSec').value = data.timeoutSec || 900;
   $('#autoRename').checked = !!data.autoRename;
@@ -255,6 +257,10 @@ async function loadSettings() {
     renderSegments();
   }
   log('已读取设置。');
+  if (state.modelList.length) {
+    setOllamaNotice('ok', `已恢复上次加载的 ${state.modelList.length} 个模型。正在后台检测 Ollama 连接…`);
+    refreshModelsSilently();
+  }
 }
 
 
@@ -302,11 +308,30 @@ function getSettings() {
   return {
     ollamaUrl: $('#ollamaUrl').value.trim(),
     modelName: $('#modelName').value.trim(),
+    modelList: state.modelList,
     shotCount: Number($('#shotCount').value || 5),
     timeoutSec: Number($('#timeoutSec').value || 900),
     autoRename: $('#autoRename').checked,
     segments: state.segments,
   };
+}
+
+async function refreshModelsSilently() {
+  try {
+    const models = await window.aglove.ollamaTags({ baseUrl: $('#ollamaUrl').value.trim() });
+    if (models.length) {
+      const current = $('#modelName').value;
+      setModelOptions(models, models.includes(current) ? current : current || models[0]);
+      setOllamaNotice('ok', `已连接 Ollama，检测到 ${models.length} 个模型。已自动恢复上次选择。`);
+      await window.aglove.saveSettings(getSettings());
+      log(`已自动刷新模型列表：${models.join(', ')}`);
+    } else {
+      setOllamaNotice('warn', '已恢复上次模型列表，但当前 Ollama 没有返回可用模型。');
+    }
+  } catch (err) {
+    setOllamaNotice('warn', `已恢复上次模型列表，但暂时无法连接 Ollama：${escapeHtml(err.message)}`);
+    log(`自动刷新模型列表失败：${err.message}`);
+  }
 }
 
 async function loadModels() {
@@ -316,6 +341,7 @@ async function loadModels() {
       setModelOptions(models, $('#modelName').value || models[0]);
       setOllamaNotice('ok', `已连接 Ollama，检测到 ${models.length} 个模型。请选择要使用的模型。`);
       showToast(`已加载 ${models.length} 个模型`);
+      await window.aglove.saveSettings(getSettings());
       log(`已加载模型：${models.join(', ')}`);
     } else {
       setOllamaNotice('warn', '已连接 Ollama，但没有检测到可用模型。请先在 Ollama 中下载视觉模型。');
