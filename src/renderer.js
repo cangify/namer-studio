@@ -232,20 +232,41 @@ function bindColumnResize() {
   const table = $('#videoTable');
   if (!table) return;
   const colMap = { path: '.col-path', status: '.col-status', name: '.col-name' };
+  const minWidth = { path: 220, status: 110, name: 180 };
+
+  function lockTableColumnWidths() {
+    const cols = [...table.querySelectorAll('col')];
+    const headerCells = [...table.querySelectorAll('thead th')];
+    let total = 0;
+    cols.forEach((col, index) => {
+      const width = Math.round(headerCells[index]?.getBoundingClientRect().width || col.getBoundingClientRect().width || 100);
+      col.style.width = `${width}px`;
+      total += width;
+    });
+    table.style.width = `${total}px`;
+    table.style.minWidth = '100%';
+  }
+
+  function tablePixelWidth() {
+    return [...table.querySelectorAll('col')].reduce((sum, col) => sum + (parseFloat(col.style.width) || col.getBoundingClientRect().width || 0), 0);
+  }
+
   $$('.col-resizer').forEach((handle) => {
     handle.addEventListener('mousedown', (event) => {
       event.preventDefault();
       event.stopPropagation();
+      lockTableColumnWidths();
       const th = handle.closest('th');
       const key = th.dataset.col;
       const col = table.querySelector(colMap[key]);
       if (!col) return;
       const startX = event.clientX;
-      const startWidth = col.getBoundingClientRect().width;
+      const startWidth = parseFloat(col.style.width) || col.getBoundingClientRect().width;
       document.body.classList.add('resizing-columns');
       const onMove = (moveEvent) => {
-        const width = Math.max(key === 'status' ? 90 : 150, startWidth + moveEvent.clientX - startX);
-        col.style.width = `${width}px`;
+        const width = Math.max(minWidth[key] || 120, startWidth + moveEvent.clientX - startX);
+        col.style.width = `${Math.round(width)}px`;
+        table.style.width = `${Math.round(tablePixelWidth())}px`;
       };
       const onUp = () => {
         document.removeEventListener('mousemove', onMove);

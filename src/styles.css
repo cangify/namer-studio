@@ -755,3 +755,12 @@ td.status {
 .more-menu {
   z-index: 9999;
 }
+
+/* 2026-07 hotfix: column resize should not redistribute other columns */
+#videoTable {
+  width: 100%;
+  min-width: 100%;
+}
+.table-wrap {
+  overflow: auto;
+}
