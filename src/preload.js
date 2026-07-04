@@ -1,12 +1,14 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('aglove', {
   pickVideos: () => ipcRenderer.invoke('dialog:pickVideos'),
   pickFolder: () => ipcRenderer.invoke('dialog:pickFolder'),
   loadSettings: () => ipcRenderer.invoke('settings:load'),
   saveSettings: (data) => ipcRenderer.invoke('settings:save', data),
+  droppedFilePaths: (files) => Array.from(files || []).map((file) => webUtils.getPathForFile(file)).filter(Boolean),
   resolveDropped: (paths) => ipcRenderer.invoke('files:resolveDropped', paths),
   renameFile: (data) => ipcRenderer.invoke('file:rename', data),
+  trashFiles: (paths) => ipcRenderer.invoke('file:trash', paths),
   ollamaInstalled: () => ipcRenderer.invoke('ollama:installed'),
   ollamaTags: (data) => ipcRenderer.invoke('ollama:tags', data),
   ollamaGenerate: (data) => ipcRenderer.invoke('ollama:generate', data),

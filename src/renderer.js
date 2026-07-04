@@ -4,6 +4,8 @@ const $$ = (sel) => [...document.querySelectorAll(sel)];
 const state = {
   videos: [],
   processing: false,
+  paused: false,
+  timer: null,
   segments: defaultSegments(),
 };
 
@@ -71,6 +73,14 @@ function buttonFeedbackText(button) {
   const map = {
     saveSettingsBtn: '正在保存设置…',
     startBtn: '开始处理视频…',
+    startBtn2: '开始处理视频…',
+    reanalyzeSelectedBtn: '重新分析选中视频…',
+    retryFailedBtn: '重试失败或未命名视频…',
+    pauseBtn: '已请求暂停',
+    resumeBtn: '继续处理',
+    invertSelectionBtn: '已反选列表',
+    selectFailedBtn: '已选择失败/未命名',
+    deleteSelectedFilesBtn: '准备删除选中文件',
     addVideosBtn: '请选择视频文件',
     addFolderBtn: '请选择视频文件夹',
     removeSelectedBtn: '已收到移除选中操作',
@@ -112,10 +122,18 @@ function bindButtons() {
   $('#addVideosBtn').addEventListener('click', async () => addPaths(await window.aglove.pickVideos()));
   $('#addFolderBtn').addEventListener('click', async () => addPaths(await window.aglove.pickFolder()));
   $('#removeSelectedBtn').addEventListener('click', removeSelected);
-  $('#clearBtn').addEventListener('click', () => { state.videos = []; renderVideos(); });
+  $('#deleteSelectedFilesBtn').addEventListener('click', deleteSelectedFiles);
+  $('#clearBtn').addEventListener('click', () => { state.videos = []; renderVideos(); showToast('列表已清空'); });
+  $('#invertSelectionBtn').addEventListener('click', invertSelection);
+  $('#selectFailedBtn').addEventListener('click', selectFailedOrUnnamed);
   $('#addSegmentBtn').addEventListener('click', addSegment);
   $('#saveSettingsBtn').addEventListener('click', saveSettings);
-  $('#startBtn').addEventListener('click', startProcessing);
+  $('#startBtn').addEventListener('click', () => startProcessing({ targets: state.videos.filter((v) => v.selected) }));
+  $('#startBtn2').addEventListener('click', () => startProcessing({ targets: state.videos.filter((v) => v.selected) }));
+  $('#reanalyzeSelectedBtn').addEventListener('click', reanalyzeSelected);
+  $('#retryFailedBtn').addEventListener('click', retryFailedOrUnnamed);
+  $('#pauseBtn').addEventListener('click', pauseProcessing);
+  $('#resumeBtn').addEventListener('click', resumeProcessing);
   $('#loadModelsBtn').addEventListener('click', loadModels);
   $('#cangifySiteBtn')?.addEventListener('click', () => window.aglove.openExternal('https://cangify.com'));
 }
@@ -158,7 +176,7 @@ function bindDropImport() {
     event.preventDefault();
     dragDepth = 0;
     shell.classList.remove('drag-over');
-    const rawPaths = [...event.dataTransfer.files].map((file) => file.path).filter(Boolean);
+    const rawPaths = window.aglove.droppedFilePaths(event.dataTransfer.files);
     if (!rawPaths.length) return showToast('没有识别到可导入的视频');
     try {
       const paths = await window.aglove.resolveDropped(rawPaths);
@@ -294,7 +312,7 @@ function addPaths(paths) {
   let added = 0;
   for (const p of paths || []) {
     if (existing.has(p)) continue;
-    state.videos.push({ id: crypto.randomUUID(), path: p, selected: true, status: '等待处理', newName: '' });
+    state.videos.push({ id: crypto.randomUUID(), path: p, selected: true, status: '等待处理', newName: '', startedAt: null, elapsedMs: 0 });
     existing.add(p); added += 1;
   }
   renderVideos();
@@ -311,7 +329,7 @@ function renderVideos() {
     tr.innerHTML = `
       <td class="sel"><input type="checkbox" ${v.selected ? 'checked' : ''} data-id="${v.id}" /></td>
       <td title="${escapeHtml(v.path)}">${escapeHtml(v.path)}</td>
-      <td class="status">${escapeHtml(v.status)}</td>
+      <td class="status">${escapeHtml(statusText(v))}</td>
       <td class="new-name">${escapeHtml(v.newName || '')}</td>`;
     tbody.appendChild(tr);
   });
@@ -319,6 +337,97 @@ function renderVideos() {
     const item = state.videos.find((v) => v.id === cb.dataset.id);
     if (item) item.selected = cb.checked;
   }));
+}
+
+
+function statusText(item) {
+  const elapsed = item.startedAt ? Date.now() - item.startedAt + (item.elapsedMs || 0) : (item.elapsedMs || 0);
+  if (!elapsed) return item.status;
+  return `${item.status} · ${formatElapsed(elapsed)}`;
+}
+
+function formatElapsed(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const m = String(Math.floor(total / 60)).padStart(2, '0');
+  const s = String(total % 60).padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function startUiTimer() {
+  clearInterval(state.timer);
+  state.timer = setInterval(() => {
+    if (state.processing) renderVideos();
+  }, 1000);
+}
+
+function stopUiTimer() {
+  clearInterval(state.timer);
+  state.timer = null;
+}
+
+function invertSelection() {
+  state.videos.forEach((v) => { v.selected = !v.selected; });
+  renderVideos();
+}
+
+function selectFailedOrUnnamed() {
+  state.videos.forEach((v) => { v.selected = v.status === '失败' || !v.newName; });
+  renderVideos();
+}
+
+async function deleteSelectedFiles() {
+  const selected = state.videos.filter((v) => v.selected);
+  if (!selected.length) return showToast('请先选择要删除的文件');
+  if (!confirm(`确定要把 ${selected.length} 个视频文件移到回收站吗？`)) return;
+  try {
+    const trashed = await window.aglove.trashFiles(selected.map((v) => v.path));
+    const trashedSet = new Set(trashed);
+    state.videos = state.videos.filter((v) => !trashedSet.has(v.path));
+    renderVideos();
+    log(`已移到回收站：${trashed.length} 个文件`);
+    showToast(`已删除 ${trashed.length} 个文件`);
+  } catch (err) {
+    log(`删除选中文件失败：${err.message}`);
+    showToast('删除失败');
+  }
+}
+
+function pauseProcessing() {
+  if (!state.processing) return;
+  state.paused = true;
+  log('已暂停。当前正在请求 Ollama 的任务会先等本次请求返回，再暂停后续任务。');
+}
+
+function resumeProcessing() {
+  state.paused = false;
+  showToast('已继续');
+}
+
+async function waitIfPaused() {
+  while (state.paused) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+}
+
+function resetForReprocess(item) {
+  item.status = '等待处理';
+  item.newName = '';
+  item.startedAt = null;
+  item.elapsedMs = 0;
+}
+
+function reanalyzeSelected() {
+  const targets = state.videos.filter((v) => v.selected);
+  targets.forEach(resetForReprocess);
+  renderVideos();
+  startProcessing({ targets });
+}
+
+function retryFailedOrUnnamed() {
+  const targets = state.videos.filter((v) => v.status === '失败' || !v.newName);
+  targets.forEach((v) => { v.selected = true; resetForReprocess(v); });
+  renderVideos();
+  startProcessing({ targets });
 }
 
 function removeSelected() {
@@ -419,24 +528,32 @@ function updatePatternPreview() {
   $('#patternPreview').textContent = parts.join('') || '未启用任何名称段';
 }
 
-async function startProcessing() {
+async function startProcessing({ targets } = {}) {
   if (state.processing) return;
   syncSegmentsFromDom();
   const settings = getSettings();
-  const targets = state.videos.filter((v) => v.selected);
+  targets = (targets || state.videos.filter((v) => v.selected)).filter(Boolean);
   if (!targets.length) return log('请先选择要处理的视频。');
   if (!settings.segments.some((s) => s.enabled && s.rule.trim())) return log('请至少启用一个有规则的名称段。');
 
   state.processing = true;
+  state.paused = false;
   $('#startBtn').disabled = true;
+  $('#startBtn2').disabled = true;
+  startUiTimer();
   try {
     for (const item of targets) {
+      await waitIfPaused();
       await processOne(item, settings);
       renderVideos();
     }
   } finally {
     state.processing = false;
+    state.paused = false;
     $('#startBtn').disabled = false;
+    $('#startBtn2').disabled = false;
+    stopUiTimer();
+    renderVideos();
     log('处理完成。');
     showToast('处理完成');
   }
@@ -444,13 +561,14 @@ async function startProcessing() {
 
 async function processOne(item, settings) {
   try {
-    item.status = '截图中'; renderVideos();
+    item.status = '截图中'; item.startedAt = Date.now(); item.elapsedMs = item.elapsedMs || 0; renderVideos();
     log(`开始处理：${baseName(item.path)}`);
     const images = await captureScreenshots(item.path, settings.shotCount);
     log(`已截图 ${images.length} 张：${baseName(item.path)}`);
 
     const outputs = [];
     for (const seg of settings.segments.filter((s) => s.enabled)) {
+      await waitIfPaused();
       item.status = `${seg.name} 生成中`; renderVideos();
       const value = await generateSegment(seg, item.path, images, settings);
       outputs.push({ seg, value });
@@ -460,6 +578,8 @@ async function processOne(item, settings) {
     const finalName = combineOutputs(outputs);
     item.newName = finalName;
     item.status = '已生成';
+    item.elapsedMs += Date.now() - item.startedAt;
+    item.startedAt = null;
     log(`生成名称：${baseName(item.path)} -> ${finalName}`);
 
     if (settings.autoRename) {
@@ -470,6 +590,7 @@ async function processOne(item, settings) {
     }
   } catch (err) {
     item.status = '失败';
+    if (item.startedAt) { item.elapsedMs += Date.now() - item.startedAt; item.startedAt = null; }
     log(`失败：${baseName(item.path)}，原因：${err.message}`);
   }
 }
@@ -554,7 +675,7 @@ async function captureScreenshots(filePath, count) {
   const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 1;
   const width = video.videoWidth || 960;
   const height = video.videoHeight || 540;
-  const maxSide = 1280;
+  const maxSide = 768;
   const scale = Math.min(1, maxSide / Math.max(width, height));
   canvas.width = Math.max(1, Math.round(width * scale));
   canvas.height = Math.max(1, Math.round(height * scale));

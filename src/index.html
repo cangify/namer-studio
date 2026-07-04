@@ -38,12 +38,24 @@
       </header>
 
       <section id="videos" class="page active">
-        <div class="card toolbar">
+        <div class="card toolbar quick-toolbar">
+          <div class="toolbar-title">快捷操作</div>
           <button id="addVideosBtn" class="btn">添加视频</button>
           <button id="addFolderBtn" class="btn">添加文件夹</button>
-          <button id="removeSelectedBtn" class="btn ghost">移除选中</button>
-          <button id="clearBtn" class="btn ghost">清空列表</button>
+          <button id="startBtn2" class="btn primary">开始分析</button>
+          <button id="reanalyzeSelectedBtn" class="btn ghost">重新分析选中</button>
+          <button id="retryFailedBtn" class="btn ghost">重试失败/未命名</button>
+          <button id="pauseBtn" class="btn ghost">暂停</button>
+          <button id="resumeBtn" class="btn ghost">继续</button>
           <label class="check auto-rename-check"><input id="autoRename" type="checkbox" /> <span>生成后自动重命名</span></label>
+        </div>
+        <div class="card toolbar list-toolbar">
+          <div class="toolbar-title">视频列表</div>
+          <button id="invertSelectionBtn" class="btn ghost">反选</button>
+          <button id="selectFailedBtn" class="btn ghost">选失败/未命名</button>
+          <button id="removeSelectedBtn" class="btn ghost">移除选中</button>
+          <button id="deleteSelectedFilesBtn" class="btn ghost danger">删除选中文件</button>
+          <button id="clearBtn" class="btn ghost">清空列表</button>
         </div>
         <div class="card table-card">
           <div class="table-head">

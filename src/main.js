@@ -102,6 +102,16 @@ ipcMain.handle('files:resolveDropped', async (_event, paths) => {
   return [...new Set(result)];
 });
 
+ipcMain.handle('file:trash', async (_event, paths) => {
+  const trashed = [];
+  for (const p of paths || []) {
+    if (!p || !fsSync.existsSync(p)) continue;
+    await shell.trashItem(p);
+    trashed.push(p);
+  }
+  return trashed;
+});
+
 ipcMain.handle('file:rename', async (_event, { filePath, newBaseName }) => {
   const parsed = path.parse(filePath);
   const ext = parsed.ext.toLowerCase();
@@ -130,21 +140,20 @@ ipcMain.handle('ollama:tags', async (_event, { baseUrl, timeout = 10000 }) => {
 
 ipcMain.handle('ollama:generate', async (_event, { baseUrl, model, prompt, images, timeout = 900000 }) => {
   const cleanBase = String(baseUrl).replace(/\/$/, '');
-  const generatePayload = {
+  const payload = {
     model,
     prompt,
     images,
-    stream: false,
+    stream: true,
     options: {
       temperature: 0.1,
       num_ctx: 16384,
-      num_predict: 768,
+      num_predict: 4096,
     },
   };
 
-  const gen = await requestJson(`${cleanBase}/api/generate`, generatePayload, timeout);
-  const genText = String(gen.response || '').trim();
-  if (genText) return genText;
+  const streamed = await requestOllamaStream(`${cleanBase}/api/generate`, payload, timeout);
+  if (streamed) return streamed;
 
   const chatPayload = {
     model,
@@ -153,16 +162,79 @@ ipcMain.handle('ollama:generate', async (_event, { baseUrl, model, prompt, image
     options: {
       temperature: 0.1,
       num_ctx: 16384,
-      num_predict: 768,
+      num_predict: 4096,
     },
   };
   const chat = await requestJson(`${cleanBase}/api/chat`, chatPayload, timeout);
-  const chatText = String(chat.message?.content || chat.response || '').trim();
+  const chatText = cleanModelText(chat.message?.content || chat.response || chat.thinking || '');
   if (chatText) return chatText;
 
-  const reason = gen.done_reason || chat.done_reason || gen.error || chat.error || '';
+  const reason = chat.done_reason || chat.error || '';
   throw new Error(`Ollama 没有返回内容${reason ? `（${reason}）` : ''}。请确认当前模型支持图片/视觉输入，建议选择 qwen3-vl 或其他视觉模型。`);
 });
+
+function cleanModelText(text) {
+  return String(text || '')
+    .replace(/<think>[\s\S]*?<\/think>/gi, ' ')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\n')
+    .replace(/\\t/g, ' ')
+    .replace(/[\x00-\x1f\x7f]+/g, '\n')
+    .trim();
+}
+
+function requestOllamaStream(urlString, payload, timeout) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlString);
+    const lib = url.protocol === 'https:' ? https : http;
+    const body = Buffer.from(JSON.stringify(payload));
+    const req = lib.request({
+      method: 'POST',
+      hostname: url.hostname,
+      port: url.port,
+      path: `${url.pathname}${url.search}`,
+      timeout,
+      headers: { 'Content-Type': 'application/json', 'Content-Length': body.length },
+    }, (res) => {
+      let buffer = '';
+      const responseParts = [];
+      const thinkingParts = [];
+      let errorText = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => {
+        if (res.statusCode >= 400) { errorText += chunk; return; }
+        buffer += chunk;
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const data = JSON.parse(line);
+            if (data.response) responseParts.push(data.response);
+            if (data.thinking) thinkingParts.push(data.thinking);
+          } catch (_) {}
+        }
+      });
+      res.on('end', () => {
+        if (res.statusCode >= 400) return reject(new Error(errorText || `HTTP ${res.statusCode}`));
+        if (buffer.trim()) {
+          try {
+            const data = JSON.parse(buffer);
+            if (data.response) responseParts.push(data.response);
+            if (data.thinking) thinkingParts.push(data.thinking);
+          } catch (_) {}
+        }
+        const response = cleanModelText(responseParts.join(''));
+        if (response) return resolve(response);
+        resolve(cleanModelText(thinkingParts.join('')));
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => req.destroy(new Error('请求 Ollama 超时')));
+    req.write(body);
+    req.end();
+  });
+}
 
 function requestJson(urlString, payload, timeout) {
   return new Promise((resolve, reject) => {

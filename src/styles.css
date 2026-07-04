@@ -589,3 +589,36 @@ th.resizable:hover .col-resizer::after,
   cursor: col-resize !important;
   user-select: none !important;
 }
+
+/* 2026-07 Python parity controls */
+.quick-toolbar,
+.list-toolbar {
+  gap: 9px;
+}
+.toolbar-title {
+  flex: 0 0 74px;
+  color: #6e675f;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: .3px;
+}
+.list-toolbar {
+  padding-top: 13px;
+  padding-bottom: 13px;
+}
+.btn.danger {
+  color: var(--danger);
+  border-color: rgba(216,70,70,.22);
+}
+.btn.danger:hover {
+  border-color: rgba(216,70,70,.38);
+  box-shadow: 0 10px 24px rgba(216,70,70,.08);
+}
+td.status {
+  line-height: 1.45;
+}
+#videoTable .col-status { width: 170px; }
+@media (max-width: 1180px) {
+  .toolbar-title { flex-basis: 100%; }
+  .auto-rename-check { margin-left: 0; }
+}
