@@ -732,3 +732,26 @@ td.status {
   .command-bar { align-items: flex-start; }
   .command-right { margin-left: auto; }
 }
+
+/* 2026-07 hotfix: keep more menu above table/card layers */
+.main,
+.page.active,
+.command-bar,
+.table-card {
+  overflow: visible;
+}
+.command-bar {
+  position: relative;
+  z-index: 200;
+}
+.table-card {
+  position: relative;
+  z-index: 1;
+}
+.more-actions {
+  position: relative;
+  z-index: 500;
+}
+.more-menu {
+  z-index: 9999;
+}
