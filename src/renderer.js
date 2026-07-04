@@ -41,6 +41,7 @@ function normalizeSegmentName(name, index) {
 }
 
 function init() {
+  bindButtonFeedback();
   bindNav();
   bindButtons();
   checkOllamaInstall();
@@ -48,6 +49,50 @@ function init() {
   renderVideos();
   loadSettings();
   log('软件已启动。Ai 视频自动命名工具已就绪。');
+}
+
+function bindButtonFeedback() {
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('button');
+    if (!button || button.disabled) return;
+    button.classList.remove('tap-feedback');
+    void button.offsetWidth;
+    button.classList.add('tap-feedback');
+    const text = buttonFeedbackText(button);
+    if (text) showToast(text);
+  }, true);
+}
+
+function buttonFeedbackText(button) {
+  if (button.classList.contains('nav')) return `已切换到${button.textContent.trim()}`;
+  const id = button.id;
+  const map = {
+    saveSettingsBtn: '正在保存设置…',
+    startBtn: '开始处理视频…',
+    addVideosBtn: '请选择视频文件',
+    addFolderBtn: '请选择视频文件夹',
+    removeSelectedBtn: '已收到移除选中操作',
+    clearBtn: '已清空列表',
+    addSegmentBtn: '已添加标题段',
+    loadModelsBtn: '正在加载 Ollama 模型…',
+    cangifySiteBtn: '正在打开官网…',
+    ollamaNoticeBtn: '正在打开 Ollama 官网…',
+  };
+  if (map[id]) return map[id];
+  if (button.classList.contains('move-up')) return '已上移标题段';
+  if (button.classList.contains('move-down')) return '已下移标题段';
+  if (button.classList.contains('delete-seg')) return '已删除标题段';
+  return button.textContent.trim() ? `已点击：${button.textContent.trim()}` : '操作已响应';
+}
+
+let toastTimer = null;
+function showToast(message) {
+  const toast = $('#toast');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1600);
 }
 
 function bindNav() {
@@ -142,6 +187,7 @@ async function saveSettings() {
   syncSegmentsFromDom();
   const savedTo = await window.aglove.saveSettings(getSettings());
   log(`设置已保存：${savedTo}`);
+  showToast('设置已保存');
 }
 
 function getSettings() {
@@ -161,13 +207,16 @@ async function loadModels() {
     if (models.length) {
       setModelOptions(models, $('#modelName').value || models[0]);
       setOllamaNotice('ok', `已连接 Ollama，检测到 ${models.length} 个模型。请选择要使用的模型。`);
+      showToast(`已加载 ${models.length} 个模型`);
       log(`已加载模型：${models.join(', ')}`);
     } else {
       setOllamaNotice('warn', '已连接 Ollama，但没有检测到可用模型。请先在 Ollama 中下载视觉模型。');
+      showToast('没有检测到可用模型');
       log('Ollama 没有返回模型列表。');
     }
   } catch (err) {
     setOllamaNotice('warn', `加载模型失败：${escapeHtml(err.message)}。请确认 Ollama 已启动，地址填写正确。`);
+    showToast('加载模型失败');
     log(`加载模型失败：${err.message}`);
   }
 }
@@ -182,6 +231,7 @@ function addPaths(paths) {
   }
   renderVideos();
   log(`已添加 ${added} 个视频。`);
+  showToast(`已添加 ${added} 个视频`);
 }
 
 function renderVideos() {
@@ -204,8 +254,10 @@ function renderVideos() {
 }
 
 function removeSelected() {
+  const before = state.videos.length;
   state.videos = state.videos.filter((v) => !v.selected);
   renderVideos();
+  showToast(`已移除 ${before - state.videos.length} 个视频`);
 }
 
 function addSegment() {
@@ -216,6 +268,7 @@ function addSegment() {
     rule: '写清楚这个标题段要生成什么。要求模型只输出这一段的最终内容，不要解释，不要扩展名。',
   });
   renderSegments();
+  showToast(`已添加${state.segments[state.segments.length - 1].name}`);
 }
 
 function renderSegments() {
@@ -279,12 +332,14 @@ function moveSegment(id, dir) {
   if (i < 0 || j < 0 || j >= state.segments.length) return;
   [state.segments[i], state.segments[j]] = [state.segments[j], state.segments[i]];
   renderSegments();
+  showToast('标题段顺序已调整');
 }
 
 function deleteSegment(id) {
   syncSegmentsFromDom();
   state.segments = state.segments.filter((s) => s.id !== id);
   renderSegments();
+  showToast('已删除标题段');
 }
 
 function updatePatternPreview() {
@@ -315,6 +370,7 @@ async function startProcessing() {
     state.processing = false;
     $('#startBtn').disabled = false;
     log('处理完成。');
+    showToast('处理完成');
   }
 }
 
