@@ -763,27 +763,19 @@ td.status {
   max-height: calc(100vh - 118px);
   overflow-y: scroll !important;
   overflow-x: hidden !important;
-  padding-right: 10px;
+  padding-right: 4px;
   padding-bottom: 28px;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(124,77,255,.42) transparent;
-  -ms-overflow-style: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 #rules.page.active {
   display: block !important;
 }
 #rules.page::-webkit-scrollbar {
-  display: block !important;
-  width: 10px !important;
-  height: 10px !important;
-}
-#rules.page::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgba(124,77,255,.34);
-}
-#rules.page::-webkit-scrollbar-track {
-  background: transparent;
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
 }
 
 /* 2026-07 hotfix: column resize should not redistribute other columns */
