@@ -81,7 +81,7 @@ function buttonFeedbackText(button) {
     moreActionsBtn: '更多操作',
     pauseBtn: '已请求暂停',
     resumeBtn: '继续处理',
-    invertSelectionBtn: '已反选列表',
+    toggleSelectAllBtn: '切换全选状态',
     selectFailedBtn: '已选择失败/未命名',
     deleteSelectedFilesBtn: '准备删除选中文件',
     addVideosBtn: '请选择视频文件',
@@ -127,7 +127,7 @@ function bindButtons() {
   $('#removeSelectedBtn').addEventListener('click', removeSelected);
   $('#deleteSelectedFilesBtn').addEventListener('click', deleteSelectedFiles);
   $('#clearBtn').addEventListener('click', () => { closeMoreActions(); state.videos = []; renderVideos(); showToast('列表已清空'); });
-  $('#invertSelectionBtn').addEventListener('click', invertSelection);
+  $('#toggleSelectAllBtn').addEventListener('click', toggleSelectAll);
   $('#selectFailedBtn').addEventListener('click', selectFailedOrUnnamed);
   $('#addSegmentBtn').addEventListener('click', addSegment);
   $('#saveSettingsBtn').addEventListener('click', saveSettings);
@@ -420,9 +420,18 @@ function renderVideos() {
   tbody.querySelectorAll('input[type="checkbox"]').forEach((cb) => cb.addEventListener('change', () => {
     const item = state.videos.find((v) => v.id === cb.dataset.id);
     if (item) item.selected = cb.checked;
+    updateSelectAllButton();
   }));
+  updateSelectAllButton();
 }
 
+
+function updateSelectAllButton() {
+  const btn = $('#toggleSelectAllBtn');
+  if (!btn) return;
+  const allSelected = state.videos.length > 0 && state.videos.every((v) => v.selected);
+  btn.textContent = allSelected ? '取消全选' : '全选';
+}
 
 function statusText(item) {
   const elapsed = item.startedAt ? Date.now() - item.startedAt + (item.elapsedMs || 0) : (item.elapsedMs || 0);
@@ -449,10 +458,12 @@ function stopUiTimer() {
   state.timer = null;
 }
 
-function invertSelection() {
+function toggleSelectAll() {
   closeMoreActions();
-  state.videos.forEach((v) => { v.selected = !v.selected; });
+  const shouldSelect = state.videos.some((v) => !v.selected);
+  state.videos.forEach((v) => { v.selected = shouldSelect; });
   renderVideos();
+  showToast(shouldSelect ? '已全选' : '已取消全选');
 }
 
 function selectFailedOrUnnamed() {
