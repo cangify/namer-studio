@@ -7,6 +7,8 @@ const https = require('https');
 const { execFile } = require('child_process');
 
 const VIDEO_EXTS = new Set(['.mp4', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm', '.m4v']);
+const SIDEBAR_AD_URL = 'https://cangify.com/globle/ads/namer-studio/namer-studio.json';
+const DEFAULT_AD_REFRESH_SECONDS = 300;
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -173,6 +175,23 @@ ipcMain.handle('ollama:generate', async (_event, { baseUrl, model, prompt, image
   throw new Error(`Ollama 没有返回内容${reason ? `（${reason}）` : ''}。请确认当前模型支持图片/视觉输入，建议选择 qwen3-vl 或其他视觉模型。`);
 });
 
+ipcMain.handle('ads:getSidebarAd', async () => {
+  try {
+    const data = await requestJson(SIDEBAR_AD_URL, null, 10000);
+    return normalizeSidebarAd(data);
+  } catch (err) {
+    return {
+      enabled: false,
+      intervalSeconds: 5,
+      refreshSeconds: DEFAULT_AD_REFRESH_SECONDS,
+      version: '',
+      updatedAt: '',
+      ads: [],
+      error: err.message,
+    };
+  }
+});
+
 function cleanModelText(text) {
   return String(text || '')
     .replace(/<think>[\s\S]*?<\/think>/gi, ' ')
@@ -265,9 +284,51 @@ function requestJson(urlString, payload, timeout) {
   });
 }
 
+function normalizeSidebarAd(data) {
+  const version = String(data?.updatedAt || data?.version || '').trim();
+  const ads = Array.isArray(data?.ads) ? data.ads.map((ad) => normalizeAdItem(ad, version)).filter(Boolean) : [];
+  return {
+    enabled: data?.enabled !== false && ads.length > 0,
+    intervalSeconds: clampNumber(data?.intervalSeconds, 3, 3600, 5),
+    refreshSeconds: clampNumber(data?.refreshSeconds, 30, 86400, DEFAULT_AD_REFRESH_SECONDS),
+    updatedAt: String(data?.updatedAt || ''),
+    version: String(data?.version || version || ''),
+    ads,
+  };
+}
+
+function normalizeAdItem(ad, version) {
+  const imageUrl = normalizeAdUrl(ad?.imageUrl, true, version);
+  const linkUrl = normalizeAdUrl(ad?.linkUrl, false, '');
+  if (!imageUrl || !linkUrl) return null;
+  return {
+    title: String(ad?.title || '').slice(0, 80),
+    alt: String(ad?.alt || ad?.title || '广告').slice(0, 120),
+    imageUrl,
+    linkUrl,
+  };
+}
+
+function normalizeAdUrl(value, addVersion, version) {
+  try {
+    const target = new URL(String(value || ''));
+    if (!['https:', 'http:'].includes(target.protocol)) return '';
+    if (addVersion && version) target.searchParams.set('_fo_ad_v', version);
+    return target.toString();
+  } catch (_) {
+    return '';
+  }
+}
+
+function clampNumber(value, min, max, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
 ipcMain.handle('shell:openExternal', async (_event, url) => {
-  const allowed = new Set(['https://ollama.com', 'https://cangify.com']);
-  if (!allowed.has(String(url))) throw new Error('不允许打开的链接');
-  await shell.openExternal(url);
+  const target = new URL(String(url));
+  if (!['https:', 'http:'].includes(target.protocol)) throw new Error('不允许打开的链接');
+  await shell.openExternal(target.toString());
   return true;
 });

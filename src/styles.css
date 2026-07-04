@@ -26,7 +26,7 @@ button, input, textarea { font: inherit; }
 button:disabled { opacity: .45; cursor: not-allowed; transform: none !important; }
 .app-shell { display: flex; height: 100vh; overflow: hidden; }
 .sidebar {
-  width: 272px;
+  width: 294px;
   margin: 16px 0 16px 16px;
   border: 1px solid rgba(255,255,255,.72);
   border-radius: 28px;
@@ -63,6 +63,43 @@ button:disabled { opacity: .45; cursor: not-allowed; transform: none !important;
   margin-top: auto; color: var(--muted); font-size: 12px; line-height: 1.6;
   background: rgba(255,255,255,.65); border: 1px solid rgba(232,224,216,.9);
   border-radius: 18px; padding: 13px;
+}
+.sidebar-ad {
+  width: 250px;
+  height: 250px;
+  margin: 8px auto 4px;
+  border: 1px solid rgba(232,224,216,.95);
+  border-radius: 20px;
+  background: rgba(255,255,255,.68);
+  overflow: hidden;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 12px 32px rgba(45,35,27,.07);
+  flex: 0 0 auto;
+}
+.sidebar-ad:focus-visible {
+  outline: 3px solid rgba(124,77,255,.28);
+  outline-offset: 3px;
+}
+.sidebar-ad img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+.sidebar-ad-placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(124,77,255,.12), transparent 34%),
+    radial-gradient(circle at 90% 10%, rgba(255,122,89,.14), transparent 32%),
+    rgba(255,255,255,.66);
 }
 .main { flex: 1; display: flex; flex-direction: column; padding: 24px 28px; min-width: 0; }
 .topbar { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 18px; }

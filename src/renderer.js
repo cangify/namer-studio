@@ -8,6 +8,10 @@ const state = {
   timer: null,
   modelList: [],
   segments: defaultSegments(),
+  sidebarAd: null,
+  sidebarAdIndex: 0,
+  sidebarAdRotateTimer: null,
+  sidebarAdRefreshTimer: null,
 };
 
 const pageMeta = {
@@ -54,6 +58,7 @@ function init() {
   renderSegments();
   renderVideos();
   loadSettings();
+  loadSidebarAd();
   log('软件已启动。Ai 视频自动命名工具已就绪。');
 }
 
@@ -141,6 +146,13 @@ function bindButtons() {
   $('#moreActionsBtn').addEventListener('click', toggleMoreActions);
   document.addEventListener('click', closeMoreActionsOnOutside);
   $('#cangifySiteBtn')?.addEventListener('click', () => window.aglove.openExternal('https://cangify.com'));
+  $('#sidebarAd')?.addEventListener('click', openCurrentSidebarAd);
+  $('#sidebarAd')?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openCurrentSidebarAd();
+    }
+  });
 }
 
 function toggleMoreActions(event) {
@@ -226,6 +238,65 @@ function bindDropImport() {
     if (rawPaths.length) await importDroppedPaths(rawPaths);
     else showToast('正在读取拖拽文件路径…');
   });
+}
+
+async function loadSidebarAd() {
+  clearSidebarAdTimers();
+  try {
+    const data = await window.aglove.getSidebarAd();
+    state.sidebarAd = data;
+    state.sidebarAdIndex = 0;
+    renderSidebarAd();
+    scheduleSidebarAdTimers();
+    if (data?.enabled && data.ads?.length) log(`已加载侧边栏广告：${data.ads.length} 张。`);
+    else log(`侧边栏广告未启用${data?.error ? `：${data.error}` : '。'}`);
+  } catch (err) {
+    state.sidebarAd = null;
+    renderSidebarAd();
+    log(`侧边栏广告加载失败：${err.message}`);
+  }
+}
+
+function clearSidebarAdTimers() {
+  if (state.sidebarAdRotateTimer) clearInterval(state.sidebarAdRotateTimer);
+  if (state.sidebarAdRefreshTimer) clearTimeout(state.sidebarAdRefreshTimer);
+  state.sidebarAdRotateTimer = null;
+  state.sidebarAdRefreshTimer = null;
+}
+
+function scheduleSidebarAdTimers() {
+  const data = state.sidebarAd;
+  const ads = data?.ads || [];
+  if (data?.enabled && ads.length > 1) {
+    state.sidebarAdRotateTimer = setInterval(() => {
+      state.sidebarAdIndex = (state.sidebarAdIndex + 1) % ads.length;
+      renderSidebarAd();
+    }, Math.max(3, Number(data.intervalSeconds || 5)) * 1000);
+  }
+  const refreshSeconds = Math.max(30, Number(data?.refreshSeconds || 300));
+  state.sidebarAdRefreshTimer = setTimeout(loadSidebarAd, refreshSeconds * 1000);
+}
+
+function renderSidebarAd() {
+  const box = $('#sidebarAd');
+  if (!box) return;
+  const ads = state.sidebarAd?.enabled ? (state.sidebarAd.ads || []) : [];
+  const ad = ads[state.sidebarAdIndex % Math.max(ads.length, 1)];
+  if (!ad) {
+    box.classList.remove('loaded');
+    box.removeAttribute('title');
+    box.innerHTML = '<div class="sidebar-ad-placeholder">广告位</div>';
+    return;
+  }
+  box.classList.add('loaded');
+  box.title = ad.title || ad.alt || '广告';
+  box.innerHTML = `<img src="${escapeAttr(ad.imageUrl)}" alt="${escapeAttr(ad.alt || ad.title || '广告')}" />`;
+}
+
+function openCurrentSidebarAd() {
+  const ads = state.sidebarAd?.enabled ? (state.sidebarAd.ads || []) : [];
+  const ad = ads[state.sidebarAdIndex % Math.max(ads.length, 1)];
+  if (ad?.linkUrl) window.aglove.openExternal(ad.linkUrl).catch((err) => log(`打开广告链接失败：${err.message}`));
 }
 
 function bindColumnResize() {

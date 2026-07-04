@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: file:; media-src 'self' file: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src http://127.0.0.1:* http://localhost:*;" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: file: https:; media-src 'self' file: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src http://127.0.0.1:* http://localhost:*;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ai视频自动命名工具</title>
   <link rel="stylesheet" href="styles.css" />
@@ -22,6 +22,9 @@
       <button class="nav" data-page="model">模型设置</button>
       <button class="nav" data-page="logs">运行日志</button>
       <button class="nav" data-page="about">关于软件</button>
+      <div id="sidebarAd" class="sidebar-ad" role="button" tabindex="0" aria-label="广告位">
+        <div class="sidebar-ad-placeholder">广告位</div>
+      </div>
       <div class="sidebar-note">根据视频截图调用本地 Ai 模型，批量生成清晰、统一、可直接重命名的文件名。</div>
     </aside>
 
