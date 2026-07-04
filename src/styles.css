@@ -60,14 +60,14 @@ button:disabled { opacity: .45; cursor: not-allowed; transform: none !important;
   box-shadow: 0 16px 34px rgba(124, 77, 255, .25);
 }
 .sidebar-note {
-  margin-top: auto; color: var(--muted); font-size: 12px; line-height: 1.6;
+  margin-top: 0; color: var(--muted); font-size: 12px; line-height: 1.6;
   background: rgba(255,255,255,.65); border: 1px solid rgba(232,224,216,.9);
   border-radius: 18px; padding: 13px;
 }
 .sidebar-ad {
   width: 250px;
   height: 250px;
-  margin: 8px auto 4px;
+  margin: auto auto 10px;
   border: 1px solid rgba(232,224,216,.95);
   border-radius: 20px;
   background: rgba(255,255,255,.68);
