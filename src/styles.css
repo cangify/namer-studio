@@ -622,3 +622,27 @@ td.status {
   .toolbar-title { flex-basis: 100%; }
   .auto-rename-check { margin-left: 0; }
 }
+
+/* 2026-07 button regrouping */
+.import-toolbar,
+.analyze-toolbar,
+.list-toolbar {
+  align-items: center;
+}
+.import-toolbar .toolbar-title,
+.analyze-toolbar .toolbar-title,
+.list-toolbar .toolbar-title {
+  flex: 0 0 92px;
+}
+.toolbar-hint {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  background: rgba(124,77,255,.07);
+  border: 1px dashed rgba(124,77,255,.18);
+  border-radius: 999px;
+  padding: 7px 11px;
+}
+.analyze-toolbar .btn.primary {
+  min-width: 92px;
+}
