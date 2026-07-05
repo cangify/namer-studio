@@ -186,6 +186,17 @@ th { position: sticky; top: 0; background: rgba(255,255,255,.94); z-index: 1; co
 th.sel, td.sel { width: 58px; text-align: center; }
 td.status { white-space: nowrap; color: var(--muted); font-weight: 700; }
 td.new-name { word-break: break-all; font-family: Consolas, "Microsoft YaHei", monospace; }
+.video-path-cell {
+  cursor: pointer;
+  color: #3f342d;
+  transition: color .15s ease, background .15s ease;
+}
+.video-path-cell:hover {
+  color: var(--primary-2);
+  background: rgba(124,77,255,.06);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 tr.search-hit td { background: rgba(124,77,255,.07); }
 td mark {
   border-radius: 5px;

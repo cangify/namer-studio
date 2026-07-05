@@ -115,6 +115,13 @@ ipcMain.handle('file:trash', async (_event, paths) => {
   return trashed;
 });
 
+ipcMain.handle('file:open', async (_event, filePath) => {
+  if (!filePath || !fsSync.existsSync(filePath)) throw new Error('文件不存在');
+  const error = await shell.openPath(filePath);
+  if (error) throw new Error(error);
+  return true;
+});
+
 ipcMain.handle('file:rename', async (_event, { filePath, newBaseName }) => {
   const parsed = path.parse(filePath);
   const ext = parsed.ext.toLowerCase();

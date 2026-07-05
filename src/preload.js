@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('aglove', {
   droppedFilePaths: (files) => Array.from(files || []).map((file) => webUtils.getPathForFile(file)).filter(Boolean),
   resolveDropped: (paths) => ipcRenderer.invoke('files:resolveDropped', paths),
   saveScreenshots: (data) => ipcRenderer.invoke('screenshots:save', data),
+  openFile: (filePath) => ipcRenderer.invoke('file:open', filePath),
   renameFile: (data) => ipcRenderer.invoke('file:rename', data),
   trashFiles: (paths) => ipcRenderer.invoke('file:trash', paths),
   ollamaInstalled: () => ipcRenderer.invoke('ollama:installed'),

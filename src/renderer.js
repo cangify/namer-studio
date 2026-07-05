@@ -564,7 +564,7 @@ function renderVideos() {
     if (state.videoSearch && index === 0) tr.classList.add('search-hit');
     tr.innerHTML = `
       <td class="sel"><input type="checkbox" ${v.selected ? 'checked' : ''} data-id="${v.id}" /></td>
-      <td title="${escapeHtml(v.path)}">${highlightMatch(v.path, state.videoSearch)}</td>
+      <td class="video-path-cell" title="点击用默认播放器打开：${escapeHtml(v.path)}" data-id="${v.id}">${highlightMatch(v.path, state.videoSearch)}</td>
       <td class="status">${escapeHtml(statusText(v))}</td>
       <td class="new-name">${highlightMatch(v.newName || '', state.videoSearch)}</td>`;
     tbody.appendChild(tr);
@@ -580,6 +580,7 @@ function renderVideos() {
     if (item) item.selected = cb.checked;
     updateSelectAllButton();
   }));
+  tbody.querySelectorAll('.video-path-cell').forEach((cell) => cell.addEventListener('click', () => openVideoFromList(cell.dataset.id)));
   if (state.videoSearch) tbody.querySelector('.search-hit')?.scrollIntoView({ block: 'nearest' });
   updateSelectAllButton();
 }
@@ -629,6 +630,18 @@ function updateSelectAllButton() {
   if (!btn) return;
   const allSelected = state.videos.length > 0 && state.videos.every((v) => v.selected);
   btn.textContent = allSelected ? '取消全选' : '全选';
+}
+
+async function openVideoFromList(id) {
+  const item = state.videos.find((v) => v.id === id);
+  if (!item?.path) return;
+  try {
+    await window.aglove.openFile(item.path);
+    log(`已打开视频：${baseName(item.path)}`);
+  } catch (err) {
+    showToast(`打开视频失败：${err.message}`);
+    log(`打开视频失败：${baseName(item.path)}，原因：${err.message}`);
+  }
 }
 
 function statusText(item) {
