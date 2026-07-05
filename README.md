@@ -2,6 +2,25 @@
 
 Namer Studio 是一个基于 Electron 的桌面软件，用本地 Ollama 视觉模型分析视频截图，并按用户配置的命名模板批量生成视频文件名。
 
+
+## 软件截图
+
+### 视频列表、搜索和状态筛选
+
+![视频列表、搜索和状态筛选](docs/images/01-video-list.png)
+
+### 命名模板配置
+
+![命名模板配置](docs/images/02-rules-template.png)
+
+### Ollama 模型设置
+
+![Ollama 模型设置](docs/images/03-model-settings.png)
+
+### 关于软件
+
+![关于软件](docs/images/04-about.png)
+
 ## 主要功能
 
 - **批量导入视频**：支持添加单个视频、多个视频或整个文件夹。
