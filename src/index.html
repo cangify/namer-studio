@@ -67,9 +67,24 @@
           </div>
         </div>
         <div class="card table-card">
-          <div class="table-head">
-            <span>视频列表</span>
-            <span id="countBadge" class="badge">0 个视频</span>
+          <div class="table-head video-list-head">
+            <div class="table-title-line">
+              <span>视频列表</span>
+              <span id="countBadge" class="badge">0 个视频</span>
+            </div>
+            <div class="video-filters">
+              <label class="video-search-field">搜索<input id="videoSearchInput" type="search" placeholder="输入文件名 / 路径 / 新名称" /></label>
+              <label class="video-status-field">状态筛选<select id="videoStatusFilter">
+                <option value="all">全部状态</option>
+                <option value="等待处理">等待处理</option>
+                <option value="处理中">处理中</option>
+                <option value="已生成">已生成</option>
+                <option value="已重命名">已重命名</option>
+                <option value="重命名中">重命名中</option>
+                <option value="失败">失败</option>
+              </select></label>
+              <button id="clearVideoFiltersBtn" class="btn ghost" type="button">清除筛选</button>
+            </div>
           </div>
           <div class="table-wrap">
             <table id="videoTable">

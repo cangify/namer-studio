@@ -3,6 +3,8 @@ const $$ = (sel) => [...document.querySelectorAll(sel)];
 
 const state = {
   videos: [],
+  videoSearch: '',
+  videoStatusFilter: 'all',
   processing: false,
   paused: false,
   timer: null,
@@ -95,6 +97,7 @@ function buttonFeedbackText(button) {
     addFolderBtn: '请选择视频文件夹',
     removeSelectedBtn: '已收到移除选中操作',
     clearBtn: '已清空列表',
+    clearVideoFiltersBtn: '已清除筛选',
     addSegmentBtn: '已添加标题段',
     loadModelsBtn: '正在加载 Ollama 模型…',
     checkUpdateBtn: '正在检查软件更新…',
@@ -136,6 +139,9 @@ function bindButtons() {
   $('#removeSelectedBtn').addEventListener('click', removeSelected);
   $('#deleteSelectedFilesBtn').addEventListener('click', deleteSelectedFiles);
   $('#clearBtn').addEventListener('click', () => { closeMoreActions(); state.videos = []; renderVideos(); showToast('列表已清空'); });
+  $('#videoSearchInput')?.addEventListener('input', (event) => { state.videoSearch = event.target.value.trim(); renderVideos(); });
+  $('#videoStatusFilter')?.addEventListener('change', (event) => { state.videoStatusFilter = event.target.value; renderVideos(); });
+  $('#clearVideoFiltersBtn')?.addEventListener('click', clearVideoFilters);
   $('#toggleSelectAllBtn').addEventListener('click', toggleSelectAll);
   $('#selectFailedBtn').addEventListener('click', selectFailedOrUnnamed);
   $('#addSegmentBtn').addEventListener('click', addSegment);
@@ -548,26 +554,75 @@ function addPaths(paths) {
 }
 
 function renderVideos() {
-  $('#countBadge').textContent = `${state.videos.length} 个视频`;
   const tbody = $('#videoRows');
+  const filtered = filteredVideos();
+  const activeFilter = Boolean(state.videoSearch || state.videoStatusFilter !== 'all');
+  $('#countBadge').textContent = activeFilter ? `${filtered.length} / ${state.videos.length} 个视频` : `${state.videos.length} 个视频`;
   tbody.innerHTML = '';
-  state.videos.forEach((v) => {
+  filtered.forEach((v, index) => {
     const tr = document.createElement('tr');
+    if (state.videoSearch && index === 0) tr.classList.add('search-hit');
     tr.innerHTML = `
       <td class="sel"><input type="checkbox" ${v.selected ? 'checked' : ''} data-id="${v.id}" /></td>
-      <td title="${escapeHtml(v.path)}">${escapeHtml(v.path)}</td>
+      <td title="${escapeHtml(v.path)}">${highlightMatch(v.path, state.videoSearch)}</td>
       <td class="status">${escapeHtml(statusText(v))}</td>
-      <td class="new-name">${escapeHtml(v.newName || '')}</td>`;
+      <td class="new-name">${highlightMatch(v.newName || '', state.videoSearch)}</td>`;
     tbody.appendChild(tr);
   });
+  if (!filtered.length) {
+    const tr = document.createElement('tr');
+    tr.className = 'empty-row';
+    tr.innerHTML = '<td colspan="4">没有匹配的视频</td>';
+    tbody.appendChild(tr);
+  }
   tbody.querySelectorAll('input[type="checkbox"]').forEach((cb) => cb.addEventListener('change', () => {
     const item = state.videos.find((v) => v.id === cb.dataset.id);
     if (item) item.selected = cb.checked;
     updateSelectAllButton();
   }));
+  if (state.videoSearch) tbody.querySelector('.search-hit')?.scrollIntoView({ block: 'nearest' });
   updateSelectAllButton();
 }
 
+function filteredVideos() {
+  const query = state.videoSearch.toLowerCase();
+  return state.videos.filter((v) => {
+    const matchesSearch = !query || [v.path, baseName(v.path), v.newName, v.status].some((part) => String(part || '').toLowerCase().includes(query));
+    const matchesStatus = state.videoStatusFilter === 'all' || statusGroup(v.status) === state.videoStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+}
+
+function statusGroup(status) {
+  const text = String(status || '等待处理');
+  if (text === '失败') return '失败';
+  if (text === '已生成') return '已生成';
+  if (text === '已重命名') return '已重命名';
+  if (text === '重命名中') return '重命名中';
+  if (text === '等待处理') return '等待处理';
+  if (text.includes('生成中') || text === '截图中') return '处理中';
+  return text;
+}
+
+function clearVideoFilters() {
+  state.videoSearch = '';
+  state.videoStatusFilter = 'all';
+  const search = $('#videoSearchInput');
+  const filter = $('#videoStatusFilter');
+  if (search) search.value = '';
+  if (filter) filter.value = 'all';
+  renderVideos();
+}
+
+function highlightMatch(text, query) {
+  const raw = String(text || '');
+  const q = String(query || '').trim();
+  if (!q) return escapeHtml(raw);
+  const lower = raw.toLowerCase();
+  const idx = lower.indexOf(q.toLowerCase());
+  if (idx < 0) return escapeHtml(raw);
+  return `${escapeHtml(raw.slice(0, idx))}<mark>${escapeHtml(raw.slice(idx, idx + q.length))}</mark>${escapeHtml(raw.slice(idx + q.length))}`;
+}
 
 function updateSelectAllButton() {
   const btn = $('#toggleSelectAllBtn');
