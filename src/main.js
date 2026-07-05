@@ -5,8 +5,9 @@ const fsSync = require('fs');
 const http = require('http');
 const https = require('https');
 const { execFile } = require('child_process');
+const os = require('os');
 
-const VIDEO_EXTS = new Set(['.mp4', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm', '.m4v']);
+const VIDEO_EXTS = new Set(['.mp4', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm', '.m4v', '.ts']);
 const SIDEBAR_AD_URL = 'https://cangify.com/globle/ads/namer-studio/namer-studio.json';
 const UPDATE_FEED_URL = 'https://cangify.com/globle/update/namer-studio.json';
 const DEFAULT_AD_REFRESH_SECONDS = 300;
@@ -151,6 +152,69 @@ ipcMain.handle('screenshots:save', async (_event, { filePath, images }) => {
   }
   return { dir: targetDir, files: saved };
 });
+
+ipcMain.handle('screenshots:captureFfmpeg', async (_event, { filePath, count }) => captureScreenshotsWithFfmpeg(filePath, count));
+
+async function captureScreenshotsWithFfmpeg(filePath, count) {
+  if (!filePath || !fsSync.existsSync(filePath)) throw new Error('视频文件不存在');
+  const ffmpeg = getBundledToolPath('ffmpeg-static-electron');
+  const ffprobe = getBundledToolPath('ffprobe-static-electron');
+  if (!ffmpeg || !ffprobe) throw new Error('缺少 FFmpeg 组件，无法解析该视频格式');
+  const duration = await probeVideoDuration(ffprobe, filePath);
+  const n = Math.max(1, Math.min(12, Number(count || 5)));
+  const times = n === 1 ? [duration / 2] : Array.from({ length: n }, (_, i) => duration * (0.12 + (0.76 * i) / (n - 1)));
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'aglove-shots-'));
+  const images = [];
+  try {
+    for (let i = 0; i < times.length; i += 1) {
+      const target = path.join(tempDir, `${String(i + 1).padStart(2, '0')}.jpg`);
+      await runExecFile(ffmpeg, [
+        '-hide_banner', '-loglevel', 'error', '-y',
+        '-ss', String(Math.max(0, times[i])),
+        '-i', filePath,
+        '-frames:v', '1',
+        '-vf', "scale='min(768,iw)':-2",
+        '-q:v', '3',
+        target,
+      ], 60000);
+      images.push((await fs.readFile(target)).toString('base64'));
+    }
+    return images;
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+function getBundledToolPath(moduleName) {
+  try {
+    const mod = require(moduleName);
+    const raw = mod.path || mod;
+    if (!raw) return '';
+    return String(raw).replace('app.asar', 'app.asar.unpacked');
+  } catch (_) {
+    return '';
+  }
+}
+
+async function probeVideoDuration(ffprobe, filePath) {
+  const { stdout } = await runExecFile(ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', filePath], 30000);
+  const duration = Number(String(stdout || '').trim());
+  if (!Number.isFinite(duration) || duration <= 0) throw new Error('无法读取视频时长');
+  return duration;
+}
+
+function runExecFile(file, args, timeout) {
+  return new Promise((resolve, reject) => {
+    execFile(file, args, { timeout }, (error, stdout, stderr) => {
+      if (error) {
+        error.message = String(stderr || error.message || '').trim() || error.message;
+        reject(error);
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
+  });
+}
 
 ipcMain.handle('ollama:installed', async () => new Promise((resolve) => {
   execFile('ollama', ['--version'], { timeout: 5000 }, (error, stdout, stderr) => {

@@ -49,6 +49,14 @@
       ],
       "icon": "src/assets/logo.png",
       "category": "public.app-category.utilities"
-    }
+    },
+    "asarUnpack": [
+      "node_modules/ffmpeg-static-electron/**",
+      "node_modules/ffprobe-static-electron/**"
+    ]
+  },
+  "dependencies": {
+    "ffmpeg-static-electron": "^2.0.3",
+    "ffprobe-static-electron": "^2.0.2"
   }
 }

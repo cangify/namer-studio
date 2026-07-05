@@ -1055,12 +1055,20 @@ function sanitizeFileName(name) {
 }
 
 async function captureScreenshots(filePath, count) {
+  const ext = String(filePath || '').split('.').pop().toLowerCase();
+  if (ext === 'ts') return window.aglove.captureScreenshots({ filePath, count });
   const video = $('#captureVideo');
   const canvas = $('#captureCanvas');
   const url = pathToFileUrl(filePath);
   video.removeAttribute('src');
   video.src = url;
-  await once(video, 'loadedmetadata', 30000);
+  try {
+    await once(video, 'loadedmetadata', 30000);
+  } catch (err) {
+    video.removeAttribute('src');
+    log(`浏览器内置解码失败，改用 FFmpeg 截图：${err.message}`);
+    return window.aglove.captureScreenshots({ filePath, count });
+  }
   const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 1;
   const width = video.videoWidth || 960;
   const height = video.videoHeight || 540;
