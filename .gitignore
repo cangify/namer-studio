@@ -1,0 +1,14 @@
+node_modules/
+release-electron/
+release-electron-current/
+release-electron-new/
+dist/
+build/
+*.log
+.DS_Store
+Thumbs.db
+.env
+.env.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
