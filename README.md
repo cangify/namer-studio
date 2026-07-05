@@ -100,57 +100,9 @@ npm run pack:mac
 
 > 注意：macOS 打包通常需要 macOS 环境才能完整生成和签名。Linux 环境下可能无法直接打出可用的 macOS 包。
 
-## 远程广告 JSON
+## 远程配置说明
 
-软件当前读取：
-
-```text
-https://cangify.com/globle/ads/namer-studio/namer-studio.json
-```
-
-支持字段：
-
-```json
-{
-  "enabled": true,
-  "intervalSeconds": 5,
-  "refreshSeconds": 60,
-  "updatedAt": "2026-07-04T18:33:00-05:00",
-  "ads": [
-    {
-      "title": "广告 1",
-      "alt": "广告 1",
-      "imageUrl": "https://cangify.com/globle/ads/namer-studio/ad-1.webp",
-      "linkUrl": "https://cangify.com/"
-    }
-  ]
-}
-```
-
-## 远程更新 JSON
-
-软件当前读取：
-
-```text
-https://cangify.com/globle/update/namer-studio.json
-```
-
-支持字段：
-
-```json
-{
-  "latest_version": "0.1.1",
-  "release_date": "2026-07-04",
-  "mandatory": false,
-  "download_url": "https://cangify.com/globle/update/Namer-Studio-Setup-Windows-x64-v0.1.1.exe",
-  "homepage": "https://cangify.com",
-  "notes": [
-    "新增软件更新检查",
-    "优化广告刷新",
-    "修复命名模板滚动显示"
-  ]
-}
-```
+软件支持通过线上配置控制侧边栏广告和版本更新提示。相关 JSON、图片和安装包地址由运营后台维护，不写入公开 README。
 
 ## 说明
 
