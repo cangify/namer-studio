@@ -840,7 +840,9 @@ async function processOne(item, settings) {
     item.status = '截图中'; item.startedAt = Date.now(); item.elapsedMs = item.elapsedMs || 0; renderVideos();
     log(`开始处理：${baseName(item.path)}`);
     const images = await captureScreenshots(item.path, settings.shotCount);
+    const savedShots = await window.aglove.saveScreenshots({ filePath: item.path, images });
     log(`已截图 ${images.length} 张：${baseName(item.path)}`);
+    if (savedShots?.dir) log(`截图已保存：${savedShots.dir}`);
 
     const outputs = [];
     for (const seg of settings.segments.filter((s) => s.enabled)) {

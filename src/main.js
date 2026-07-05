@@ -128,6 +128,22 @@ ipcMain.handle('file:rename', async (_event, { filePath, newBaseName }) => {
   return target;
 });
 
+ipcMain.handle('screenshots:save', async (_event, { filePath, images }) => {
+  const list = Array.isArray(images) ? images : [];
+  const parsed = path.parse(filePath);
+  const videoName = sanitizeFileName(parsed.name) || '未命名视频';
+  const targetDir = path.join(parsed.dir, '截图', videoName);
+  await fs.mkdir(targetDir, { recursive: true });
+  const saved = [];
+  for (let i = 0; i < list.length; i += 1) {
+    const raw = String(list[i] || '').replace(/^data:image\/\w+;base64,/, '');
+    if (!raw) continue;
+    const target = path.join(targetDir, `${String(i + 1).padStart(2, '0')}.jpg`);
+    await fs.writeFile(target, Buffer.from(raw, 'base64'));
+    saved.push(target);
+  }
+  return { dir: targetDir, files: saved };
+});
 
 ipcMain.handle('ollama:installed', async () => new Promise((resolve) => {
   execFile('ollama', ['--version'], { timeout: 5000 }, (error, stdout, stderr) => {
@@ -328,6 +344,14 @@ function versionParts(value) {
 
 function normalizeDownloadUrl(value) {
   return normalizeAdUrl(value, false, '');
+}
+
+function sanitizeFileName(name) {
+  return String(name || '')
+    .replace(/[<>:"/\\|?*\x00-\x1f\x7f]/g, '')
+    .replace(/\s+/g, '')
+    .replace(/^\.+|\.+$/g, '')
+    .slice(0, 120);
 }
 
 function normalizeSidebarAd(data) {
