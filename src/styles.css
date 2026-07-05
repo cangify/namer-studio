@@ -136,11 +136,15 @@ p { margin: 6px 0 0; color: var(--muted); }
 }
 .table-title-line {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 220px;
-  flex: 1 1 220px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
+  min-width: 160px;
+  flex: 0 0 160px;
+}
+.table-title-line .badge {
+  width: max-content;
 }
 .video-filters {
   display: flex;
