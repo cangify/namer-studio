@@ -179,6 +179,51 @@ p { margin: 6px 0 0; color: var(--muted); }
   border-radius: 12px;
 }
 .badge { font-size: 12px; font-weight: 800; color: var(--primary-2); background: rgba(124,77,255,.10); padding: 6px 10px; border-radius: 999px; }
+.video-status-summary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(94px, 1fr));
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid rgba(232,224,216,.72);
+  background: rgba(255,255,255,.44);
+}
+.status-chip {
+  border: 1px solid rgba(232,224,216,.86);
+  border-radius: 16px;
+  background: rgba(255,255,255,.72);
+  color: #514a43;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  transition: .16s ease;
+  font-weight: 900;
+}
+.status-chip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(124,77,255,.30);
+  box-shadow: 0 10px 24px rgba(45,35,27,.07);
+}
+.status-chip span {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.status-chip b {
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text);
+}
+.status-chip.processing b { color: var(--primary-2); }
+.status-chip.generated b,
+.status-chip.renamed b { color: var(--success); }
+.status-chip.failed b { color: var(--danger); }
+.status-chip.waiting b { color: #8a6a35; }
+@media (max-width: 1180px) {
+  .video-status-summary { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+}
 .table-wrap { overflow: auto; flex: 1; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { padding: 13px 15px; border-bottom: 1px solid rgba(232,224,216,.65); text-align: left; vertical-align: top; }

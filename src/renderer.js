@@ -554,6 +554,7 @@ function addPaths(paths) {
 }
 
 function renderVideos() {
+  renderVideoStatusSummary();
   const tbody = $('#videoRows');
   const filtered = filteredVideos();
   const activeFilter = Boolean(state.videoSearch || state.videoStatusFilter !== 'all');
@@ -583,6 +584,48 @@ function renderVideos() {
   tbody.querySelectorAll('.video-path-cell').forEach((cell) => cell.addEventListener('click', () => openVideoFromList(cell.dataset.id)));
   if (state.videoSearch) tbody.querySelector('.search-hit')?.scrollIntoView({ block: 'nearest' });
   updateSelectAllButton();
+}
+
+function renderVideoStatusSummary() {
+  const wrap = $('#videoStatusSummary');
+  if (!wrap) return;
+  const counts = videoStatusCounts();
+  const items = [
+    ['总数', counts.total, 'total'],
+    ['等待处理', counts.waiting, 'waiting'],
+    ['处理中', counts.processing, 'processing'],
+    ['已生成', counts.generated, 'generated'],
+    ['已重命名', counts.renamed, 'renamed'],
+    ['失败', counts.failed, 'failed'],
+  ];
+  wrap.innerHTML = items.map(([label, value, type]) => `
+    <button class="status-chip ${type}" type="button" data-filter="${escapeAttr(statusFilterForChip(type))}">
+      <span>${escapeHtml(label)}</span><b>${value}</b>
+    </button>`).join('');
+  wrap.querySelectorAll('.status-chip').forEach((chip) => chip.addEventListener('click', () => {
+    const filter = chip.dataset.filter || 'all';
+    state.videoStatusFilter = filter;
+    const select = $('#videoStatusFilter');
+    if (select) select.value = filter;
+    renderVideos();
+  }));
+}
+
+function statusFilterForChip(type) {
+  return ({ total: 'all', waiting: '等待处理', processing: '处理中', generated: '已生成', renamed: '已重命名', failed: '失败' })[type] || 'all';
+}
+
+function videoStatusCounts() {
+  const counts = { total: state.videos.length, waiting: 0, processing: 0, generated: 0, renamed: 0, failed: 0 };
+  for (const video of state.videos) {
+    const group = statusGroup(video.status);
+    if (group === '等待处理') counts.waiting += 1;
+    else if (group === '处理中' || group === '重命名中') counts.processing += 1;
+    else if (group === '已生成') counts.generated += 1;
+    else if (group === '已重命名') counts.renamed += 1;
+    else if (group === '失败') counts.failed += 1;
+  }
+  return counts;
 }
 
 function filteredVideos() {
