@@ -7,7 +7,8 @@
     "start": "electron .",
     "check": "node --check src/main.js && node --check src/preload.js && node --check src/renderer.js",
     "pack:win": "electron-builder --win zip",
-    "pack:linux": "electron-builder --linux AppImage"
+    "pack:linux": "electron-builder --linux AppImage",
+    "pack:mac": "electron-builder --mac zip"
   },
   "keywords": [
     "video",
@@ -41,6 +42,13 @@
         "AppImage"
       ],
       "icon": "src/assets/logo-256.png"
+    },
+    "mac": {
+      "target": [
+        "zip"
+      ],
+      "icon": "src/assets/logo.png",
+      "category": "public.app-category.utilities"
     }
   }
 }
