@@ -1099,9 +1099,14 @@ function once(target, event, timeoutMs) {
 }
 
 function pathToFileUrl(p) {
-  let path = String(p).replace(/\\/g, '/');
-  if (!path.startsWith('/')) path = `/${path}`;
-  return encodeURI(`file://${path}`);
+  let filePath = String(p || '').replace(/\\/g, '/');
+  if (!filePath.startsWith('/')) filePath = `/${filePath}`;
+  const encoded = filePath.split('/').map((part, index) => {
+    if (index === 0) return '';
+    if (index === 1 && /^[A-Za-z]:$/.test(part)) return part;
+    return encodeURIComponent(part);
+  }).join('/');
+  return `file://${encoded}`;
 }
 
 function baseName(p) {
