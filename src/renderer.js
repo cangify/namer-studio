@@ -1142,14 +1142,54 @@ async function captureScreenshots(filePath, count) {
   const n = Math.max(1, Math.min(12, Number(count || 5)));
   const times = n === 1 ? [duration / 2] : Array.from({ length: n }, (_, i) => duration * (0.12 + (0.76 * i) / (n - 1)));
   const images = [];
+  let blackFrames = 0;
   for (const t of times) {
     video.currentTime = Math.min(duration - 0.05, Math.max(0, t));
     await once(video, 'seeked', 15000);
+    await waitVideoFrame(video);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    if (isMostlyBlackCanvas(canvas, ctx)) blackFrames += 1;
     images.push(canvas.toDataURL('image/jpeg', 0.88).split(',')[1]);
   }
   video.removeAttribute('src');
+  if (images.length && blackFrames >= Math.max(1, Math.ceil(images.length * 0.6))) {
+    log(`检测到 ${blackFrames}/${images.length} 张截图接近全黑，改用 FFmpeg 重新截图。`);
+    return window.aglove.captureScreenshots({ filePath, count });
+  }
   return images;
+}
+
+function waitVideoFrame(video) {
+  return new Promise((resolve) => {
+    if (typeof video.requestVideoFrameCallback === 'function') {
+      const timer = setTimeout(resolve, 1200);
+      video.requestVideoFrameCallback(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+      return;
+    }
+    setTimeout(resolve, 250);
+  });
+}
+
+function isMostlyBlackCanvas(canvas, ctx) {
+  const width = canvas.width;
+  const height = canvas.height;
+  if (!width || !height) return true;
+  const sampleWidth = Math.min(96, width);
+  const sampleHeight = Math.min(96, height);
+  const data = ctx.getImageData(0, 0, sampleWidth, sampleHeight).data;
+  let dark = 0;
+  let total = 0;
+  let brightnessSum = 0;
+  for (let i = 0; i < data.length; i += 16) {
+    const brightness = data[i] + data[i + 1] + data[i + 2];
+    brightnessSum += brightness;
+    if (brightness < 36) dark += 1;
+    total += 1;
+  }
+  return total > 0 && dark / total > 0.96 && brightnessSum / total < 24;
 }
 
 function once(target, event, timeoutMs) {
