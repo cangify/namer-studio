@@ -1101,3 +1101,31 @@ td.status {
     -webkit-line-clamp: 5;
   }
 }
+
+/* 2026-07 fix: keep rule editor actions visible */
+.rule-editor-dialog {
+  height: min(780px, 88vh);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.rule-editor-dialog .modal-head {
+  flex: 0 0 auto;
+}
+.rule-editor-text {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.rule-editor-dialog .modal-actions {
+  flex: 0 0 auto;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(232,224,216,.82);
+  background: rgba(255,255,255,.96);
+}
+.rule-editor-dialog .modal-actions .btn {
+  min-width: 96px;
+  white-space: nowrap;
+}
