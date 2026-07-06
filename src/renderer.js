@@ -997,7 +997,7 @@ async function generateSegment(seg, filePath, images, settings) {
     });
     lastRaw = raw;
     const cleaned = cleanSegmentOutput(raw, seg);
-    const check = validateSegment(cleaned, seg);
+    const check = await validateSegment(cleaned, seg, settings);
     if (check.ok) return cleaned;
     log(`${seg.name} 输出违规，自动重试 ${attempt}/3：${check.reason}；原始返回：${raw.slice(0, 140)}`);
   }
@@ -1012,7 +1012,7 @@ function buildPrompt(seg, filePath, lastRaw, attempt) {
       : `\n\n上一轮输出违规，不要重复。上一轮内容：${lastRaw.slice(0, 180)}\n现在重新输出，必须只输出纯内容。`)
     : '';
   if (englishMode) {
-    const tagRule = isTagSegment(seg) ? '\n7. For tags, do not create invented long merged words. Bad examples: bodylightworkshop, redgraystrapbedroom. Use short standard searchable tags instead.' : '';
+    const tagRule = isTagSegment(seg) ? '\n7. For tags, do not invent unnatural merged keywords. Prefer short, standard, searchable compact tags.' : '';
     return `You are a video file naming assistant. The images are screenshots from the same video.\n\nGenerate only this segment: ${seg.name}\nOutput prefix: ${seg.prefix || 'none'}\nOriginal filename for reference only: ${baseName(filePath)}\nIf the original filename contains Chinese or non English useful keywords, translate the meaning into natural English. Do not copy Chinese text into the final output.\n\nSegment rule:\n${seg.rule}\n\nHard rules:\n1. Output only the final content for ${seg.name}.\n2. Use English only. Do not output Chinese or any non English words.\n3. Do not explain, analyze, or restate the rules.\n4. Do not output a file extension.\n5. Do not output incomplete words or unfinished fragments.\n6. If commas are required, use half width English commas only.${tagRule}\n${retry}`;
   }
   return `你是视频文件命名助手。图片来自同一个视频。\n\n当前只生成这一段：${seg.name}\n输出前缀：${seg.prefix || '无'}\n原文件名：${baseName(filePath)}\n\n这一段的命名规则：\n${seg.rule}\n\n硬性规则：\n1. 只输出${seg.name}的最终内容本身。\n2. 不要解释，不要分析过程，不要复述规则。\n3. 不要输出“需要再加”“多少字”“标题为”“文件名”等说明。\n4. 不要输出扩展名。\n5. 如果需要多个词，只能按用户规则使用英文逗号。\n${retry}`;
@@ -1044,7 +1044,7 @@ function cleanSegmentOutput(raw, seg) {
   return text.trim();
 }
 
-function validateSegment(text, seg) {
+async function validateSegment(text, seg, settings) {
   if (!text) return { ok: false, reason: '内容为空' };
   const forbidden = ['用户', '要求', '规则', '提示词', '需要', '再加', '字数', '个字', '字符', '输出', '解释', '截图', '图片', '首先', '分析', '应该', '可以', '符合', '格式', '文件名', '标题为'];
   const hit = forbidden.find((w) => text.includes(w));
@@ -1058,6 +1058,8 @@ function validateSegment(text, seg) {
     if (isEnglishRule(seg) && isTagSegment(seg)) {
       const tagCheck = validateEnglishTags(text);
       if (!tagCheck.ok) return tagCheck;
+      const aiCheck = await reviewEnglishTagsWithAi(text, settings);
+      if (!aiCheck.ok) return aiCheck;
     }
   } else {
     if (/\d/.test(text)) return { ok: false, reason: '标题包含数字' };
@@ -1084,21 +1086,37 @@ function validateEnglishTags(text) {
   if (tags.length < 10 || tags.length > 15) return { ok: false, reason: `标签数量应为 10 到 15 个，当前 ${tags.length} 个` };
   const duplicate = tags.find((tag, index) => tags.indexOf(tag) !== index);
   if (duplicate) return { ok: false, reason: `标签重复：${duplicate}` };
-  const suspicious = tags.find((tag) => isSuspiciousMergedTag(tag));
-  if (suspicious) return { ok: false, reason: `疑似乱拼英文标签：${suspicious}` };
   return { ok: true };
 }
 
-function isSuspiciousMergedTag(tag) {
-  const token = String(tag || '').toLowerCase();
-  if (!/^[a-z][a-z0-9_-]*$/.test(token)) return false;
-  if (token.includes('-') || token.includes('_')) return false;
-  const knownLongTags = new Set(['blackunderwear', 'whiteunderwear', 'broadshoulders', 'chestmuscle', 'muscularbody', 'bodycontact', 'bathroommirror', 'lockerroom', 'bellybutton', 'silverhaired', 'shirtlessman', 'shirtlessmen']);
-  if (knownLongTags.has(token)) return false;
-  if (token.length > 16) return true;
-  const roots = ['body', 'light', 'workshop', 'room', 'bedroom', 'bathroom', 'hotel', 'gray', 'black', 'red', 'strap', 'straps', 'naked', 'muscle', 'chest', 'back', 'shoulder', 'shoulders', 'pose', 'contact'];
-  const hits = roots.filter((root) => token.includes(root));
-  return hits.length >= 3;
+async function reviewEnglishTagsWithAi(text, settings) {
+  const prompt = `You are a strict WordPress tag quality reviewer.
+
+Review this comma separated English tag line:
+${text}
+
+Accept tags that are compact but natural searchable English keywords, such as broadshoulders, chestmuscle, bodycontact, bathroommirror, blackunderwear, lockerroom.
+Reject tags that look like invented merged phrases, unnatural glued words, OCR fragments, broken English, repeated meanings, or non searchable nonsense.
+
+Return exactly one line only:
+OK
+or
+REJECT: short reason`;
+  try {
+    const raw = await window.aglove.ollamaGenerate({
+      baseUrl: settings.ollamaUrl,
+      model: settings.modelName,
+      prompt,
+      images: [],
+      timeout: Math.max(60, Math.min(settings.timeoutSec || 120, 180)) * 1000,
+    });
+    const result = String(raw || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim().split(/[\r\n]+/).map((x) => x.trim()).filter(Boolean).pop() || '';
+    if (/^OK\b/i.test(result)) return { ok: true };
+    if (/^REJECT\s*[:：]/i.test(result)) return { ok: false, reason: result.replace(/^REJECT\s*[:：]\s*/i, 'AI 复核拒绝：').slice(0, 120) };
+    return { ok: false, reason: `AI 复核返回格式不正确：${result.slice(0, 80)}` };
+  } catch (err) {
+    return { ok: false, reason: `AI 标签复核失败：${err.message}` };
+  }
 }
 
 function isEnglishRule(seg) {
