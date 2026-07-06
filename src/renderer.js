@@ -1005,11 +1005,21 @@ async function generateSegment(seg, filePath, images, settings) {
 }
 
 function buildPrompt(seg, filePath, lastRaw, attempt) {
-  const retry = attempt > 1 ? `\n\n上一轮输出违规，不要重复。上一轮内容：${lastRaw.slice(0, 180)}\n现在重新输出，必须只输出纯内容。` : '';
+  const englishMode = isEnglishRule(seg);
+  const retry = attempt > 1
+    ? (englishMode
+      ? `\n\nPrevious output was invalid. Do not repeat it. Previous output: ${lastRaw.slice(0, 180)}\nRegenerate now. Output only the final valid content.`
+      : `\n\n上一轮输出违规，不要重复。上一轮内容：${lastRaw.slice(0, 180)}\n现在重新输出，必须只输出纯内容。`)
+    : '';
+  if (englishMode) {
+    return `You are a video file naming assistant. The images are screenshots from the same video.\n\nGenerate only this segment: ${seg.name}\nOutput prefix: ${seg.prefix || 'none'}\nOriginal filename for reference only: ${baseName(filePath)}\nIf the original filename contains Chinese or non English useful keywords, translate the meaning into natural English. Do not copy Chinese text into the final output.\n\nSegment rule:\n${seg.rule}\n\nHard rules:\n1. Output only the final content for ${seg.name}.\n2. Use English only. Do not output Chinese or any non English words.\n3. Do not explain, analyze, or restate the rules.\n4. Do not output a file extension.\n5. Do not output incomplete words or unfinished fragments.\n6. If commas are required, use half width English commas only.\n${retry}`;
+  }
   return `你是视频文件命名助手。图片来自同一个视频。\n\n当前只生成这一段：${seg.name}\n输出前缀：${seg.prefix || '无'}\n原文件名：${baseName(filePath)}\n\n这一段的命名规则：\n${seg.rule}\n\n硬性规则：\n1. 只输出${seg.name}的最终内容本身。\n2. 不要解释，不要分析过程，不要复述规则。\n3. 不要输出“需要再加”“多少字”“标题为”“文件名”等说明。\n4. 不要输出扩展名。\n5. 如果需要多个词，只能按用户规则使用英文逗号。\n${retry}`;
 }
 
 function cleanSegmentOutput(raw, seg) {
+  const isList = isListSegment(seg);
+  const englishMode = isEnglishRule(seg);
   let text = String(raw || '').replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```/g, '').trim();
   text = text.split(/[\r\n]+/).map((x) => x.trim()).filter(Boolean).pop() || text;
   text = text.replace(/^\s*(?:T|C|G|标题|名称|文件名|分类|标签|结果|输出)\s*[:：=]\s*/i, '');
@@ -1019,12 +1029,19 @@ function cleanSegmentOutput(raw, seg) {
   text = text.replace(/[（(【\[]\s*\d+\s*(?:个?字|字符)\s*[）)】\]]\s*$/g, '');
   text = text.replace(/(?:是|为|标题|文件名)$/g, '');
   text = text.replace(/[<>:"/\\|?*\x00-\x1f\x7f]/g, '');
-  if (seg.prefix === 'C=' || seg.prefix === 'G=' || /分类|标签/.test(seg.name)) {
+  if (isList) {
     text = text.replace(/[，、；;\s]+/g, ',').replace(/,+/g, ',').replace(/^,|,$/g, '');
+    if (englishMode) text = text.split(',').map((x) => cleanEnglishToken(x)).filter(Boolean).join(',');
+  } else if (englishMode) {
+    text = text
+      .replace(/[，。、《》？！；：‘’“”"'`·•…—–~～,.;:!?()（）\[\]【】{}]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    text = limitEnglishWords(text, 12, 140);
   } else {
     text = text.replace(/[，。、《》？！；：‘’“”"'`·•…—–~～,.;:!?()（）\[\]【】{}]/g, '').replace(/\s+/g, '');
   }
-  return text.trim().slice(0, 80);
+  return smartTrim(text.trim(), isList ? 220 : 180);
 }
 
 function validateSegment(text, seg) {
@@ -1034,11 +1051,52 @@ function validateSegment(text, seg) {
   if (hit) return { ok: false, reason: `包含说明词：${hit}` };
   if (/[→⇒➡]/.test(text)) return { ok: false, reason: '包含箭头说明' };
   if (/\d+\s*(个?字|字符)/.test(text)) return { ok: false, reason: '包含字数说明' };
-  if (seg.prefix !== 'C=' && seg.prefix !== 'G=' && !/分类|标签/.test(seg.name)) {
+  if (isEnglishRule(seg) && /[\u3400-\u9fff]/.test(text)) return { ok: false, reason: '英文模式下包含中文' };
+  if (isListSegment(seg)) {
+    if (/\s/.test(text)) return { ok: false, reason: '分类/标签包含空格' };
+    if (isEnglishRule(seg) && /[^a-zA-Z0-9_,\-]/.test(text)) return { ok: false, reason: '分类/标签包含非英文字符' };
+  } else {
     if (/\d/.test(text)) return { ok: false, reason: '标题包含数字' };
     if (/[，。、《》？！；：‘’“”"'`·•…—–~～,.;:!?()（）\[\]【】{}]/.test(text)) return { ok: false, reason: '标题包含标点' };
+    if (isEnglishRule(seg)) {
+      const words = englishWords(text);
+      if (words.length < 4) return { ok: false, reason: '英文标题过短或未完整生成' };
+      if (/\b[a-zA-Z]$/.test(text) && words.length >= 8) return { ok: false, reason: '英文标题疑似截断半个词' };
+    }
   }
   return { ok: true };
+}
+
+function isListSegment(seg) {
+  return seg.prefix === 'C=' || seg.prefix === 'G=' || /分类|标签|category|tag/i.test(seg.name);
+}
+
+function isEnglishRule(seg) {
+  return /\bEnglish\b|lowercase English|WordPress categories|WordPress tags|video title generator/i.test(`${seg.name || ''}\n${seg.rule || ''}`);
+}
+
+function englishWords(text) {
+  return String(text || '').match(/[A-Za-z]+(?:'[A-Za-z]+)?/g) || [];
+}
+
+function limitEnglishWords(text, maxWords, maxChars) {
+  const words = englishWords(text);
+  const limited = words.slice(0, maxWords).join(' ');
+  return smartTrim(limited || text, maxChars);
+}
+
+function cleanEnglishToken(token) {
+  return String(token || '')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .trim();
+}
+
+function smartTrim(text, maxChars) {
+  const raw = String(text || '').trim();
+  if (raw.length <= maxChars) return raw;
+  const cut = raw.slice(0, maxChars + 1);
+  const boundary = Math.max(cut.lastIndexOf(' '), cut.lastIndexOf(','));
+  return (boundary > Math.floor(maxChars * 0.6) ? cut.slice(0, boundary) : raw.slice(0, maxChars)).trim().replace(/[,\s]+$/g, '');
 }
 
 function combineOutputs(outputs) {
