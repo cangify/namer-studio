@@ -436,6 +436,7 @@ async function loadSettings() {
   setModelOptions(Array.isArray(data.modelList) ? data.modelList : [], data.modelName || 'llava');
   $('#shotCount').value = data.shotCount || 5;
   $('#timeoutSec').value = data.timeoutSec || 900;
+  $('#aiStrictReview').checked = !!data.aiStrictReview;
   $('#autoRename').checked = !!data.autoRename;
   if (Array.isArray(data.segments) && data.segments.length) {
     state.segments = migrateSegments(data.segments);
@@ -496,6 +497,7 @@ function getSettings() {
     modelList: state.modelList,
     shotCount: Number($('#shotCount').value || 5),
     timeoutSec: Number($('#timeoutSec').value || 900),
+    aiStrictReview: $('#aiStrictReview').checked,
     autoRename: $('#autoRename').checked,
     segments: state.segments,
   };
@@ -997,7 +999,7 @@ async function generateSegment(seg, filePath, images, settings) {
     });
     lastRaw = raw;
     const cleaned = cleanSegmentOutput(raw, seg);
-    const check = await validateSegment(cleaned, seg, settings);
+    const check = await validateSegment(cleaned, seg, settings, images, filePath);
     if (check.ok) return cleaned;
     log(`${seg.name} 输出违规，自动重试 ${attempt}/3：${check.reason}；原始返回：${raw.slice(0, 140)}`);
   }
@@ -1044,7 +1046,7 @@ function cleanSegmentOutput(raw, seg) {
   return text.trim();
 }
 
-async function validateSegment(text, seg, settings) {
+async function validateSegment(text, seg, settings, images, filePath) {
   if (!text) return { ok: false, reason: '内容为空' };
   const forbidden = ['用户', '要求', '规则', '提示词', '需要', '再加', '字数', '个字', '字符', '输出', '解释', '截图', '图片', '首先', '分析', '应该', '可以', '符合', '格式', '文件名', '标题为'];
   const hit = forbidden.find((w) => text.includes(w));
@@ -1058,8 +1060,10 @@ async function validateSegment(text, seg, settings) {
     if (isEnglishRule(seg) && isTagSegment(seg)) {
       const tagCheck = validateEnglishTags(text);
       if (!tagCheck.ok) return tagCheck;
-      const aiCheck = await reviewEnglishTagsWithAi(text, settings);
-      if (!aiCheck.ok) return aiCheck;
+      if (!settings.aiStrictReview) {
+        const aiCheck = await reviewEnglishTagsWithAi(text, settings);
+        if (!aiCheck.ok) return aiCheck;
+      }
     }
   } else {
     if (/\d/.test(text)) return { ok: false, reason: '标题包含数字' };
@@ -1069,6 +1073,10 @@ async function validateSegment(text, seg, settings) {
       if (words.length < 4) return { ok: false, reason: '英文标题过短或未完整生成' };
       if (/\b[a-zA-Z]$/.test(text) && words.length >= 8) return { ok: false, reason: '英文标题疑似截断半个词' };
     }
+  }
+  if (settings.aiStrictReview) {
+    const aiCheck = await reviewSegmentWithAi(text, seg, settings, images, filePath);
+    if (!aiCheck.ok) return aiCheck;
   }
   return { ok: true };
 }
@@ -1087,6 +1095,45 @@ function validateEnglishTags(text) {
   const duplicate = tags.find((tag, index) => tags.indexOf(tag) !== index);
   if (duplicate) return { ok: false, reason: `标签重复：${duplicate}` };
   return { ok: true };
+}
+
+async function reviewSegmentWithAi(text, seg, settings, images, filePath) {
+  const prompt = `You are a strict output quality reviewer for a video filename segment.
+
+The images are screenshots from the same video. The original filename is for secondary reference only:
+${baseName(filePath)}
+
+Segment name:
+${seg.name || ''}
+
+Segment prefix:
+${seg.prefix || 'none'}
+
+User rule for this segment:
+${seg.rule || ''}
+
+Generated output to review:
+${text}
+
+Review whether the generated output follows the user's rule, is complete, uses the requested language and format, avoids invented unsupported details, and is suitable as this one filename segment.
+For list segments, also reject unnatural merged words, OCR fragments, broken keywords, duplicate meanings, or non searchable nonsense.
+
+Return exactly one line only:
+OK
+or
+REJECT: short reason`;
+  try {
+    const raw = await window.aglove.ollamaGenerate({
+      baseUrl: settings.ollamaUrl,
+      model: settings.modelName,
+      prompt,
+      images: Array.isArray(images) ? images : [],
+      timeout: Math.max(60, Math.min(settings.timeoutSec || 120, 240)) * 1000,
+    });
+    return parseAiReviewResult(raw);
+  } catch (err) {
+    return { ok: false, reason: `AI 严格复核失败：${err.message}` };
+  }
 }
 
 async function reviewEnglishTagsWithAi(text, settings) {
@@ -1110,13 +1157,17 @@ REJECT: short reason`;
       images: [],
       timeout: Math.max(60, Math.min(settings.timeoutSec || 120, 180)) * 1000,
     });
-    const result = String(raw || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim().split(/[\r\n]+/).map((x) => x.trim()).filter(Boolean).pop() || '';
-    if (/^OK\b/i.test(result)) return { ok: true };
-    if (/^REJECT\s*[:：]/i.test(result)) return { ok: false, reason: result.replace(/^REJECT\s*[:：]\s*/i, 'AI 复核拒绝：').slice(0, 120) };
-    return { ok: false, reason: `AI 复核返回格式不正确：${result.slice(0, 80)}` };
+    return parseAiReviewResult(raw);
   } catch (err) {
     return { ok: false, reason: `AI 标签复核失败：${err.message}` };
   }
+}
+
+function parseAiReviewResult(raw) {
+  const result = String(raw || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim().split(/[\r\n]+/).map((x) => x.trim()).filter(Boolean).pop() || '';
+  if (/^OK\b/i.test(result)) return { ok: true };
+  if (/^REJECT\s*[:：]/i.test(result)) return { ok: false, reason: result.replace(/^REJECT\s*[:：]\s*/i, 'AI 复核拒绝：').slice(0, 120) };
+  return { ok: false, reason: `AI 复核返回格式不正确：${result.slice(0, 80)}` };
 }
 
 function isEnglishRule(seg) {

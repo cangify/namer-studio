@@ -118,6 +118,7 @@
           <label>模型<div class="model-line"><select id="modelName"><option value="llava">llava</option></select><button id="loadModelsBtn" class="btn ghost">加载模型</button></div></label>
           <label>截图数量<input id="shotCount" type="number" min="1" max="12" value="5" /></label>
           <label>请求超时（秒）<input id="timeoutSec" type="number" min="60" step="60" value="900" /></label>
+          <label class="check"><input id="aiStrictReview" type="checkbox" /> <span>AI 严格复核每个片段</span></label>
           <div class="update-check-card">
             <div>
               <b>软件更新</b>
@@ -127,7 +128,7 @@
           </div>
         </div>
         <div class="card hint-card">
-          <b>提示：</b>视觉大模型建议用 5 张截图、900 秒超时。标题会被硬校验，不符合规则会自动重试，不会直接采用脏结果。
+          <b>提示：</b>视觉大模型建议用 5 张截图、900 秒超时。开启 AI 严格复核后，每个启用的模板片段都会额外调用一次 AI 按该片段规则复核，结果更稳但速度会变慢。
           <div id="ollamaInstallNotice" class="ollama-notice" hidden></div>
         </div>
       </section>
