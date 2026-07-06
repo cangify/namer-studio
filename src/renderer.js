@@ -17,6 +17,8 @@ const state = {
   updateInfo: null,
 };
 
+let editingRuleTextarea = null;
+
 const pageMeta = {
   videos: ['视频任务', '添加视频，按你的命名规则自动生成新文件名。'],
   rules: ['命名模板', '设置标题段、前缀、后缀和生成规则。'],
@@ -159,6 +161,10 @@ function bindButtons() {
   $('#copyUpdateLinkBtn')?.addEventListener('click', copyUpdateLink);
   $('#closeUpdateDialogBtn')?.addEventListener('click', closeUpdateDialog);
   $('#updateDialog')?.addEventListener('click', (event) => { if (event.target.id === 'updateDialog') closeUpdateDialog(); });
+  $('#closeRuleEditorBtn')?.addEventListener('click', closeRuleEditor);
+  $('#cancelRuleEditorBtn')?.addEventListener('click', closeRuleEditor);
+  $('#saveRuleEditorBtn')?.addEventListener('click', saveRuleEditor);
+  $('#ruleEditorDialog')?.addEventListener('click', (event) => { if (event.target.id === 'ruleEditorDialog') closeRuleEditor(); });
   $('#moreActionsBtn').addEventListener('click', toggleMoreActions);
   document.addEventListener('click', closeMoreActionsOnOutside);
   $('#cangifySiteBtn')?.addEventListener('click', () => window.aglove.openExternal('https://cangify.com'));
@@ -866,7 +872,10 @@ function renderSegments() {
           <label>固定前缀<input class="seg-prefix" value="${escapeAttr(seg.prefix || '')}" placeholder="可空，如 T=" /></label>
           <label>固定后缀<input class="seg-suffix" type="text" value="${escapeAttr(seg.suffix ?? seg.connector ?? '')}" placeholder="例如 __" /></label>
         </div>
-        <label class="rule-field">生成规则<textarea class="seg-rule">${escapeHtml(seg.rule || '')}</textarea></label>
+        <label class="rule-field">生成规则
+          <textarea class="seg-rule" hidden>${escapeHtml(seg.rule || '')}</textarea>
+          <button class="rule-preview" type="button" title="点击弹窗编辑生成规则">${escapeHtml(rulePreviewText(seg.rule || ''))}</button>
+        </label>
         <div class="segment-foot">
           <label class="switch-line"><input class="seg-enabled" type="checkbox" ${seg.enabled ? 'checked' : ''} /> 启用这个标题段</label>
           <span>预览：${escapeHtml(`${seg.prefix || ''}${normalizeSegmentName(seg.name, index)}${seg.suffix ?? seg.connector ?? ''}`)}</span>
@@ -876,10 +885,42 @@ function renderSegments() {
   });
 
   wrap.querySelectorAll('input, textarea').forEach((el) => el.addEventListener('input', () => { syncSegmentsFromDom(); updatePatternPreview(); }));
+  wrap.querySelectorAll('.rule-preview').forEach((btn) => btn.addEventListener('click', () => openRuleEditor(btn.closest('.segment'))));
   wrap.querySelectorAll('.move-up').forEach((btn) => btn.addEventListener('click', () => moveSegment(btn.closest('.segment').dataset.id, -1)));
   wrap.querySelectorAll('.move-down').forEach((btn) => btn.addEventListener('click', () => moveSegment(btn.closest('.segment').dataset.id, 1)));
   wrap.querySelectorAll('.delete-seg').forEach((btn) => btn.addEventListener('click', () => deleteSegment(btn.closest('.segment').dataset.id)));
   updatePatternPreview();
+}
+
+function rulePreviewText(rule) {
+  const text = String(rule || '').replace(/\s+/g, ' ').trim();
+  return text || '点击编辑生成规则';
+}
+
+function openRuleEditor(card) {
+  if (!card) return;
+  editingRuleTextarea = card.querySelector('.seg-rule');
+  const title = card.querySelector('.seg-name')?.value?.trim() || card.querySelector('.segment-title')?.textContent || '生成规则';
+  $('#ruleEditorTitle').textContent = `编辑生成规则 · ${title}`;
+  $('#ruleEditorText').value = editingRuleTextarea?.value || '';
+  $('#ruleEditorDialog').hidden = false;
+  setTimeout(() => $('#ruleEditorText')?.focus(), 0);
+}
+
+function closeRuleEditor() {
+  $('#ruleEditorDialog').hidden = true;
+  editingRuleTextarea = null;
+}
+
+function saveRuleEditor() {
+  if (!editingRuleTextarea) return closeRuleEditor();
+  editingRuleTextarea.value = $('#ruleEditorText').value;
+  const card = editingRuleTextarea.closest('.segment');
+  const preview = card?.querySelector('.rule-preview');
+  if (preview) preview.textContent = rulePreviewText(editingRuleTextarea.value);
+  editingRuleTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+  closeRuleEditor();
+  showToast('生成规则已更新');
 }
 
 function syncSegmentsFromDom() {
