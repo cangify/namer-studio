@@ -132,7 +132,14 @@ ipcMain.handle('file:rename', async (_event, { filePath, newBaseName }) => {
     target = path.join(parsed.dir, `${newBaseName}_${n}${ext}`);
     n += 1;
   }
-  await fs.rename(filePath, target);
+  try {
+    await fs.rename(filePath, target);
+  } catch (err) {
+    if (err?.code === 'ENAMETOOLONG' || err?.code === 'EINVAL') {
+      throw new Error('文件名或路径太长，系统拒绝重命名。请在模板里减少标题、分类或标签数量后重试。');
+    }
+    throw err;
+  }
   return target;
 });
 

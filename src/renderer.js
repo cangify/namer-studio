@@ -1037,11 +1037,10 @@ function cleanSegmentOutput(raw, seg) {
       .replace(/[，。、《》？！；：‘’“”"'`·•…—–~～,.;:!?()（）\[\]【】{}]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
-    text = limitEnglishWords(text, 12, 140);
   } else {
     text = text.replace(/[，。、《》？！；：‘’“”"'`·•…—–~～,.;:!?()（）\[\]【】{}]/g, '').replace(/\s+/g, '');
   }
-  return smartTrim(text.trim(), isList ? 220 : 180);
+  return text.trim();
 }
 
 function validateSegment(text, seg) {
@@ -1079,24 +1078,10 @@ function englishWords(text) {
   return String(text || '').match(/[A-Za-z]+(?:'[A-Za-z]+)?/g) || [];
 }
 
-function limitEnglishWords(text, maxWords, maxChars) {
-  const words = englishWords(text);
-  const limited = words.slice(0, maxWords).join(' ');
-  return smartTrim(limited || text, maxChars);
-}
-
 function cleanEnglishToken(token) {
   return String(token || '')
     .replace(/[^a-zA-Z0-9_-]/g, '')
     .trim();
-}
-
-function smartTrim(text, maxChars) {
-  const raw = String(text || '').trim();
-  if (raw.length <= maxChars) return raw;
-  const cut = raw.slice(0, maxChars + 1);
-  const boundary = Math.max(cut.lastIndexOf(' '), cut.lastIndexOf(','));
-  return (boundary > Math.floor(maxChars * 0.6) ? cut.slice(0, boundary) : raw.slice(0, maxChars)).trim().replace(/[,\s]+$/g, '');
 }
 
 function combineOutputs(outputs) {
@@ -1105,20 +1090,7 @@ function combineOutputs(outputs) {
     const part = `${seg.prefix || ''}${value}`;
     final += `${part}${seg.suffix ?? seg.connector ?? ''}`;
   });
-  return trimGeneratedFileName(sanitizeFileName(final), 240);
-}
-
-function trimGeneratedFileName(name, maxChars) {
-  const raw = String(name || '').trim();
-  if (raw.length <= maxChars) return raw;
-  const cut = raw.slice(0, maxChars + 1);
-  const boundary = Math.max(cut.lastIndexOf(','), cut.lastIndexOf('__'), cut.lastIndexOf(' '));
-  const trimmed = boundary > Math.floor(maxChars * 0.55) ? cut.slice(0, boundary) : raw.slice(0, maxChars);
-  return trimmed
-    .replace(/(?:__)?(?:T=|C=|G=)?$/i, '')
-    .replace(/[,_\s]+$/g, '')
-    .replace(/__$/g, '')
-    .trim() || smartTrim(raw, maxChars);
+  return sanitizeFileName(final);
 }
 
 function sanitizeFileName(name) {
