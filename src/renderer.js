@@ -1109,7 +1109,11 @@ function combineOutputs(outputs) {
 }
 
 function sanitizeFileName(name) {
-  return String(name || '').replace(/[<>:"/\\|?*\x00-\x1f\x7f]/g, '').replace(/\s+/g, '').replace(/^\.+|\.+$/g, '') || '未命名视频';
+  return String(name || '')
+    .replace(/[<>:"/\\|?*\x00-\x1f\x7f]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^\.+|\.+$/g, '')
+    .trim() || '未命名视频';
 }
 
 async function captureScreenshots(filePath, count) {
