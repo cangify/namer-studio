@@ -1086,7 +1086,12 @@ function isListSegment(seg) {
 }
 
 function isTagSegment(seg) {
-  return /标签|tag/i.test(`${seg.name || ''}\n${seg.rule || ''}`);
+  const text = `${seg.name || ''}\n${seg.rule || ''}`;
+  return /final output format:\s*G\s*=/i.test(text)
+    || /tag generation assistant/i.test(text)
+    || /final tag line/i.test(text)
+    || /output\s+\d+\s+to\s+\d+\s+tags/i.test(text)
+    || /输出\s*\d+\s*[到至-]\s*\d+\s*个?标签/.test(text);
 }
 
 function validateEnglishTags(text) {
