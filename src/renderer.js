@@ -673,8 +673,10 @@ function highlightMatch(text, query) {
 function updateSelectAllButton() {
   const btn = $('#toggleSelectAllBtn');
   if (!btn) return;
-  const allSelected = state.videos.length > 0 && state.videos.every((v) => v.selected);
-  btn.textContent = allSelected ? '取消全选' : '全选';
+  const visible = filteredVideos();
+  const allSelected = visible.length > 0 && visible.every((v) => v.selected);
+  btn.textContent = allSelected ? '取消筛选项全选' : '全选筛选项';
+  btn.disabled = visible.length === 0;
 }
 
 async function openVideoFromList(id) {
@@ -716,10 +718,12 @@ function stopUiTimer() {
 
 function toggleSelectAll() {
   closeMoreActions();
-  const shouldSelect = state.videos.some((v) => !v.selected);
-  state.videos.forEach((v) => { v.selected = shouldSelect; });
+  const visible = filteredVideos();
+  if (!visible.length) return showToast('当前筛选下没有视频');
+  const shouldSelect = visible.some((v) => !v.selected);
+  visible.forEach((v) => { v.selected = shouldSelect; });
   renderVideos();
-  showToast(shouldSelect ? '已全选' : '已取消全选');
+  showToast(shouldSelect ? `已全选当前筛选的 ${visible.length} 个视频` : `已取消当前筛选的 ${visible.length} 个视频`);
 }
 
 function selectFailedOrUnnamed() {
@@ -1060,10 +1064,6 @@ async function validateSegment(text, seg, settings, images, filePath) {
     if (isEnglishRule(seg) && isTagSegment(seg)) {
       const tagCheck = validateEnglishTags(text);
       if (!tagCheck.ok) return tagCheck;
-      if (!settings.aiStrictReview) {
-        const aiCheck = await reviewEnglishTagsWithAi(text, settings);
-        if (!aiCheck.ok) return aiCheck;
-      }
     }
   } else {
     if (/\d/.test(text)) return { ok: false, reason: '标题包含数字' };
@@ -1086,7 +1086,7 @@ function isListSegment(seg) {
 }
 
 function isTagSegment(seg) {
-  return seg.prefix === 'G=' || /标签|tag/i.test(seg.name);
+  return /标签|tag/i.test(`${seg.name || ''}\n${seg.rule || ''}`);
 }
 
 function validateEnglishTags(text) {
@@ -1133,33 +1133,6 @@ REJECT: short reason`;
     return parseAiReviewResult(raw);
   } catch (err) {
     return { ok: false, reason: `AI 严格复核失败：${err.message}` };
-  }
-}
-
-async function reviewEnglishTagsWithAi(text, settings) {
-  const prompt = `You are a strict WordPress tag quality reviewer.
-
-Review this comma separated English tag line:
-${text}
-
-Accept tags that are compact but natural searchable English keywords, such as broadshoulders, chestmuscle, bodycontact, bathroommirror, blackunderwear, lockerroom.
-Reject tags that look like invented merged phrases, unnatural glued words, OCR fragments, broken English, repeated meanings, or non searchable nonsense.
-
-Return exactly one line only:
-OK
-or
-REJECT: short reason`;
-  try {
-    const raw = await window.aglove.ollamaGenerate({
-      baseUrl: settings.ollamaUrl,
-      model: settings.modelName,
-      prompt,
-      images: [],
-      timeout: Math.max(60, Math.min(settings.timeoutSec || 120, 180)) * 1000,
-    });
-    return parseAiReviewResult(raw);
-  } catch (err) {
-    return { ok: false, reason: `AI 标签复核失败：${err.message}` };
   }
 }
 
