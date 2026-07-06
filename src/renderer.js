@@ -1012,7 +1012,8 @@ function buildPrompt(seg, filePath, lastRaw, attempt) {
       : `\n\n上一轮输出违规，不要重复。上一轮内容：${lastRaw.slice(0, 180)}\n现在重新输出，必须只输出纯内容。`)
     : '';
   if (englishMode) {
-    return `You are a video file naming assistant. The images are screenshots from the same video.\n\nGenerate only this segment: ${seg.name}\nOutput prefix: ${seg.prefix || 'none'}\nOriginal filename for reference only: ${baseName(filePath)}\nIf the original filename contains Chinese or non English useful keywords, translate the meaning into natural English. Do not copy Chinese text into the final output.\n\nSegment rule:\n${seg.rule}\n\nHard rules:\n1. Output only the final content for ${seg.name}.\n2. Use English only. Do not output Chinese or any non English words.\n3. Do not explain, analyze, or restate the rules.\n4. Do not output a file extension.\n5. Do not output incomplete words or unfinished fragments.\n6. If commas are required, use half width English commas only.\n${retry}`;
+    const tagRule = isTagSegment(seg) ? '\n7. For tags, do not create invented long merged words. Bad examples: bodylightworkshop, redgraystrapbedroom. Use short standard searchable tags instead.' : '';
+    return `You are a video file naming assistant. The images are screenshots from the same video.\n\nGenerate only this segment: ${seg.name}\nOutput prefix: ${seg.prefix || 'none'}\nOriginal filename for reference only: ${baseName(filePath)}\nIf the original filename contains Chinese or non English useful keywords, translate the meaning into natural English. Do not copy Chinese text into the final output.\n\nSegment rule:\n${seg.rule}\n\nHard rules:\n1. Output only the final content for ${seg.name}.\n2. Use English only. Do not output Chinese or any non English words.\n3. Do not explain, analyze, or restate the rules.\n4. Do not output a file extension.\n5. Do not output incomplete words or unfinished fragments.\n6. If commas are required, use half width English commas only.${tagRule}\n${retry}`;
   }
   return `你是视频文件命名助手。图片来自同一个视频。\n\n当前只生成这一段：${seg.name}\n输出前缀：${seg.prefix || '无'}\n原文件名：${baseName(filePath)}\n\n这一段的命名规则：\n${seg.rule}\n\n硬性规则：\n1. 只输出${seg.name}的最终内容本身。\n2. 不要解释，不要分析过程，不要复述规则。\n3. 不要输出“需要再加”“多少字”“标题为”“文件名”等说明。\n4. 不要输出扩展名。\n5. 如果需要多个词，只能按用户规则使用英文逗号。\n${retry}`;
 }
@@ -1054,6 +1055,10 @@ function validateSegment(text, seg) {
   if (isListSegment(seg)) {
     if (/\s/.test(text)) return { ok: false, reason: '分类/标签包含空格' };
     if (isEnglishRule(seg) && /[^a-zA-Z0-9_,\-]/.test(text)) return { ok: false, reason: '分类/标签包含非英文字符' };
+    if (isEnglishRule(seg) && isTagSegment(seg)) {
+      const tagCheck = validateEnglishTags(text);
+      if (!tagCheck.ok) return tagCheck;
+    }
   } else {
     if (/\d/.test(text)) return { ok: false, reason: '标题包含数字' };
     if (/[，。、《》？！；：‘’“”"'`·•…—–~～,.;:!?()（）\[\]【】{}]/.test(text)) return { ok: false, reason: '标题包含标点' };
@@ -1068,6 +1073,32 @@ function validateSegment(text, seg) {
 
 function isListSegment(seg) {
   return seg.prefix === 'C=' || seg.prefix === 'G=' || /分类|标签|category|tag/i.test(seg.name);
+}
+
+function isTagSegment(seg) {
+  return seg.prefix === 'G=' || /标签|tag/i.test(seg.name);
+}
+
+function validateEnglishTags(text) {
+  const tags = String(text || '').split(',').map((x) => x.trim()).filter(Boolean);
+  if (tags.length < 10 || tags.length > 15) return { ok: false, reason: `标签数量应为 10 到 15 个，当前 ${tags.length} 个` };
+  const duplicate = tags.find((tag, index) => tags.indexOf(tag) !== index);
+  if (duplicate) return { ok: false, reason: `标签重复：${duplicate}` };
+  const suspicious = tags.find((tag) => isSuspiciousMergedTag(tag));
+  if (suspicious) return { ok: false, reason: `疑似乱拼英文标签：${suspicious}` };
+  return { ok: true };
+}
+
+function isSuspiciousMergedTag(tag) {
+  const token = String(tag || '').toLowerCase();
+  if (!/^[a-z][a-z0-9_-]*$/.test(token)) return false;
+  if (token.includes('-') || token.includes('_')) return false;
+  const knownLongTags = new Set(['blackunderwear', 'whiteunderwear', 'broadshoulders', 'chestmuscle', 'muscularbody', 'bodycontact', 'bathroommirror', 'lockerroom', 'bellybutton', 'silverhaired', 'shirtlessman', 'shirtlessmen']);
+  if (knownLongTags.has(token)) return false;
+  if (token.length > 16) return true;
+  const roots = ['body', 'light', 'workshop', 'room', 'bedroom', 'bathroom', 'hotel', 'gray', 'black', 'red', 'strap', 'straps', 'naked', 'muscle', 'chest', 'back', 'shoulder', 'shoulders', 'pose', 'contact'];
+  const hits = roots.filter((root) => token.includes(root));
+  return hits.length >= 3;
 }
 
 function isEnglishRule(seg) {
