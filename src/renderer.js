@@ -1105,7 +1105,20 @@ function combineOutputs(outputs) {
     const part = `${seg.prefix || ''}${value}`;
     final += `${part}${seg.suffix ?? seg.connector ?? ''}`;
   });
-  return sanitizeFileName(final).slice(0, 180);
+  return trimGeneratedFileName(sanitizeFileName(final), 240);
+}
+
+function trimGeneratedFileName(name, maxChars) {
+  const raw = String(name || '').trim();
+  if (raw.length <= maxChars) return raw;
+  const cut = raw.slice(0, maxChars + 1);
+  const boundary = Math.max(cut.lastIndexOf(','), cut.lastIndexOf('__'), cut.lastIndexOf(' '));
+  const trimmed = boundary > Math.floor(maxChars * 0.55) ? cut.slice(0, boundary) : raw.slice(0, maxChars);
+  return trimmed
+    .replace(/(?:__)?(?:T=|C=|G=)?$/i, '')
+    .replace(/[,_\s]+$/g, '')
+    .replace(/__$/g, '')
+    .trim() || smartTrim(raw, maxChars);
 }
 
 function sanitizeFileName(name) {
