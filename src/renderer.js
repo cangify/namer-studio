@@ -660,7 +660,7 @@ function updateTemplateActionState() {
     return;
   }
   const updated = tpl.updatedAt ? new Date(tpl.updatedAt).toLocaleString('zh-CN') : '未知时间';
-  meta.textContent = `当前选中：${tpl.name} · ${tpl.segments.length} 个片段 · 更新时间：${updated}${tpl.note ? ` · 备注：${tpl.note}` : ''}`;
+  meta.textContent = `已选：${tpl.name} · ${tpl.segments.length} 个片段 · ${updated}${tpl.note ? ` · ${tpl.note}` : ''}`;
 }
 
 async function persistSettingsQuietly() {
