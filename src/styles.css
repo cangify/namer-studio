@@ -256,6 +256,18 @@ td mark {
   font-weight: 850;
 }
 .rules-intro { padding: 20px 22px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.template-manager { padding: 18px 20px; margin-bottom: 16px; }
+.template-manager-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.template-manager h3 { margin: 3px 0 4px; font-size: 20px; }
+.template-manager p { margin: 0; color: var(--muted); font-size: 13px; font-weight: 700; }
+.template-kicker { color: var(--primary-2); font-size: 11px; font-weight: 950; letter-spacing: .7px; }
+.template-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.template-actions .btn { padding: 10px 12px; }
+.danger-text { color: var(--danger) !important; }
+.template-form { display: grid; grid-template-columns: minmax(190px, .85fr) minmax(220px, 1fr) minmax(280px, 1.45fr); gap: 12px; align-items: start; }
+.template-form label { display: flex; flex-direction: column; gap: 7px; color: #575048; font-size: 12px; font-weight: 900; }
+.template-note-field textarea { min-height: 46px; max-height: 92px; }
+.template-meta { margin-top: 12px; color: var(--muted); font-size: 12px; font-weight: 750; line-height: 1.5; }
 .segments { display: grid; grid-template-columns: repeat(auto-fit, minmax(390px, 1fr)); gap: 16px; align-items: start; }
 .segment { padding: 18px; position: relative; overflow: hidden; }
 .segment::before {

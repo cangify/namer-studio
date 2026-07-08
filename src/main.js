@@ -94,6 +94,30 @@ ipcMain.handle('settings:save', async (_event, data) => {
   return configPath();
 });
 
+ipcMain.handle('template:importFile', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: '导入命名模板',
+    properties: ['openFile'],
+    filters: [{ name: '命名模板 JSON', extensions: ['json'] }, { name: '所有文件', extensions: ['*'] }],
+  });
+  if (canceled || !filePaths[0]) return null;
+  const filePath = filePaths[0];
+  const data = JSON.parse(await fs.readFile(filePath, 'utf8'));
+  return { filePath, data };
+});
+
+ipcMain.handle('template:exportFile', async (_event, payload) => {
+  const rawName = sanitizeFileName(payload?.template?.name || '命名模板') || '命名模板';
+  const { canceled, filePath } = await dialog.showSaveDialog({
+    title: '导出命名模板',
+    defaultPath: `${rawName}.json`,
+    filters: [{ name: '命名模板 JSON', extensions: ['json'] }],
+  });
+  if (canceled || !filePath) return null;
+  await fs.writeFile(filePath, JSON.stringify(payload, null, 2), 'utf8');
+  return filePath;
+});
+
 ipcMain.handle('files:resolveDropped', async (_event, paths) => {
   const result = [];
   for (const p of paths || []) {

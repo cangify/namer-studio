@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('aglove', {
   pickFolder: () => ipcRenderer.invoke('dialog:pickFolder'),
   loadSettings: () => ipcRenderer.invoke('settings:load'),
   saveSettings: (data) => ipcRenderer.invoke('settings:save', data),
+  importTemplateFile: () => ipcRenderer.invoke('template:importFile'),
+  exportTemplateFile: (data) => ipcRenderer.invoke('template:exportFile', data),
   droppedFilePaths: (files) => Array.from(files || []).map((file) => webUtils.getPathForFile(file)).filter(Boolean),
   resolveDropped: (paths) => ipcRenderer.invoke('files:resolveDropped', paths),
   saveScreenshots: (data) => ipcRenderer.invoke('screenshots:save', data),

@@ -101,9 +101,32 @@
         <div class="card rules-intro">
           <div>
             <h2>文件名模板</h2>
-            <p>设置多个标题段，组合生成最终文件名。</p>
+            <p>设置多个标题段，组合生成最终文件名；可把整套规则保存成模板，方便之后导入导出。</p>
           </div>
           <button id="addSegmentBtn" class="btn primary">+ 添加片段</button>
+        </div>
+        <div class="card template-manager">
+          <div class="template-manager-head">
+            <div>
+              <div class="template-kicker">TEMPLATE LIBRARY</div>
+              <h3>模板库</h3>
+              <p>保存当前命名规则为“模板1 / 模板2”等，名称和备注都可以自己改。</p>
+            </div>
+            <div class="template-actions">
+              <button id="saveTemplateBtn" class="btn primary" type="button">保存当前为模板</button>
+              <button id="newTemplateBtn" class="btn ghost" type="button">新建模板</button>
+              <button id="applyTemplateBtn" class="btn ghost" type="button">套用模板</button>
+              <button id="exportTemplateBtn" class="btn ghost" type="button">导出选中模板</button>
+              <button id="importTemplateBtn" class="btn ghost" type="button">导入模板</button>
+              <button id="deleteTemplateBtn" class="btn ghost danger-text" type="button">删除模板</button>
+            </div>
+          </div>
+          <div class="template-form">
+            <label>选择模板<select id="templateSelect"></select></label>
+            <label>模板名称<input id="templateName" type="text" placeholder="例如：模板1 / 甜美风格 / 站内标题" /></label>
+            <label class="template-note-field">备注<textarea id="templateNote" placeholder="可写用途、适合的平台、注意事项等"></textarea></label>
+          </div>
+          <div id="templateMeta" class="template-meta">还没有保存模板。</div>
         </div>
         <div id="segments" class="segments"></div>
         <div class="card preview-card">

@@ -10,6 +10,8 @@ const state = {
   timer: null,
   modelList: [],
   segments: defaultSegments(),
+  templates: [],
+  activeTemplateId: '',
   sidebarAd: null,
   sidebarAdIndex: 0,
   sidebarAdRotateTimer: null,
@@ -61,6 +63,7 @@ function init() {
   bindColumnResize();
   checkOllamaInstall();
   renderSegments();
+  renderTemplateLibrary();
   renderVideos();
   loadSettings();
   loadSidebarAd();
@@ -101,6 +104,12 @@ function buttonFeedbackText(button) {
     clearBtn: '已清空列表',
     clearVideoFiltersBtn: '已清除筛选',
     addSegmentBtn: '已添加标题段',
+    saveTemplateBtn: '正在保存模板…',
+    newTemplateBtn: '正在新建模板…',
+    applyTemplateBtn: '正在套用模板…',
+    exportTemplateBtn: '正在导出模板…',
+    importTemplateBtn: '正在导入模板…',
+    deleteTemplateBtn: '准备删除模板',
     loadModelsBtn: '正在加载 Ollama 模型…',
     checkUpdateBtn: '正在检查软件更新…',
     aboutCheckUpdateBtn: '正在检查软件更新…',
@@ -147,6 +156,15 @@ function bindButtons() {
   $('#toggleSelectAllBtn').addEventListener('click', toggleSelectAll);
   $('#selectFailedBtn').addEventListener('click', selectFailedOrUnnamed);
   $('#addSegmentBtn').addEventListener('click', addSegment);
+  $('#saveTemplateBtn')?.addEventListener('click', saveCurrentTemplate);
+  $('#newTemplateBtn')?.addEventListener('click', prepareNewTemplate);
+  $('#applyTemplateBtn')?.addEventListener('click', applySelectedTemplate);
+  $('#exportTemplateBtn')?.addEventListener('click', exportSelectedTemplate);
+  $('#importTemplateBtn')?.addEventListener('click', importTemplateFile);
+  $('#deleteTemplateBtn')?.addEventListener('click', deleteSelectedTemplate);
+  $('#templateSelect')?.addEventListener('change', onTemplateSelectChange);
+  $('#templateName')?.addEventListener('input', updateTemplateActionState);
+  $('#templateNote')?.addEventListener('input', updateTemplateActionState);
   $('#saveSettingsBtn').addEventListener('click', saveSettings);
   $('#startBtn').addEventListener('click', () => startProcessing({ targets: state.videos.filter((v) => v.selected) }));
   $('#renameGeneratedBtn').addEventListener('click', renameGeneratedFiles);
@@ -444,10 +462,15 @@ async function loadSettings() {
   $('#timeoutSec').value = data.timeoutSec || 900;
   $('#aiStrictReview').checked = !!data.aiStrictReview;
   $('#autoRename').checked = !!data.autoRename;
+  if (Array.isArray(data.templates)) {
+    state.templates = migrateTemplates(data.templates);
+    state.activeTemplateId = data.activeTemplateId || '';
+  }
   if (Array.isArray(data.segments) && data.segments.length) {
     state.segments = migrateSegments(data.segments);
     renderSegments();
   }
+  renderTemplateLibrary();
   log('已读取设置。');
   if (state.modelList.length) {
     setOllamaNotice('ok', `已恢复上次加载的 ${state.modelList.length} 个模型。正在后台检测 Ollama 连接…`);
@@ -455,6 +478,31 @@ async function loadSettings() {
   }
 }
 
+
+function migrateTemplates(templates) {
+  return templates
+    .filter((tpl) => tpl && Array.isArray(tpl.segments) && tpl.segments.length)
+    .map((tpl, index) => ({
+      id: tpl.id || crypto.randomUUID(),
+      name: String(tpl.name || `模板${index + 1}`).trim() || `模板${index + 1}`,
+      note: String(tpl.note || '').trim(),
+      updatedAt: tpl.updatedAt || new Date().toISOString(),
+      segments: migrateSegments(tpl.segments),
+    }));
+}
+
+function cloneSegmentsForTemplate(segments, { freshIds = false } = {}) {
+  return migrateSegments(segments || []).map((seg) => ({
+    id: freshIds ? crypto.randomUUID() : (seg.id || crypto.randomUUID()),
+    enabled: !!seg.enabled,
+    name: seg.name || '',
+    prefix: seg.prefix || '',
+    joinBefore: false,
+    suffix: seg.suffix ?? seg.connector ?? '',
+    connector: seg.suffix ?? seg.connector ?? '',
+    rule: seg.rule || '',
+  }));
+}
 
 function migrateSegments(segments) {
   return segments.map((s, i, arr) => {
@@ -506,6 +554,8 @@ function getSettings() {
     aiStrictReview: $('#aiStrictReview').checked,
     autoRename: $('#autoRename').checked,
     segments: state.segments,
+    templates: state.templates,
+    activeTemplateId: state.activeTemplateId,
   };
 }
 
@@ -545,6 +595,175 @@ async function loadModels() {
     setOllamaNotice('warn', `加载模型失败：${escapeHtml(err.message)}。请确认 Ollama 已启动，地址填写正确。`);
     showToast('加载模型失败');
     log(`加载模型失败：${err.message}`);
+  }
+}
+
+function nextTemplateName() {
+  let n = state.templates.length + 1;
+  const names = new Set(state.templates.map((tpl) => tpl.name));
+  while (names.has(`模板${n}`)) n += 1;
+  return `模板${n}`;
+}
+
+function selectedTemplate() {
+  const id = $('#templateSelect')?.value || state.activeTemplateId;
+  return state.templates.find((tpl) => tpl.id === id) || null;
+}
+
+function renderTemplateLibrary() {
+  const select = $('#templateSelect');
+  if (!select) return;
+  if (state.templates.length && !state.templates.some((tpl) => tpl.id === state.activeTemplateId)) {
+    state.activeTemplateId = state.templates[0].id;
+  }
+  select.innerHTML = state.templates.length
+    ? state.templates.map((tpl) => `<option value="${escapeAttr(tpl.id)}">${escapeHtml(tpl.name)}</option>`).join('')
+    : '<option value="">暂无模板</option>';
+  select.value = state.activeTemplateId || '';
+  const tpl = selectedTemplate();
+  $('#templateName').value = tpl?.name || nextTemplateName();
+  $('#templateNote').value = tpl?.note || '';
+  updateTemplateActionState();
+}
+
+function prepareNewTemplate() {
+  syncSegmentsFromDom();
+  state.activeTemplateId = '';
+  const select = $('#templateSelect');
+  if (select) select.value = '';
+  $('#templateName').value = nextTemplateName();
+  $('#templateNote').value = '';
+  updateTemplateActionState();
+  showToast('已准备新模板，编辑名称后保存即可');
+}
+
+function onTemplateSelectChange() {
+  state.activeTemplateId = $('#templateSelect')?.value || '';
+  const tpl = selectedTemplate();
+  $('#templateName').value = tpl?.name || nextTemplateName();
+  $('#templateNote').value = tpl?.note || '';
+  updateTemplateActionState();
+}
+
+function updateTemplateActionState() {
+  const tpl = selectedTemplate();
+  const hasTemplate = !!tpl;
+  $('#applyTemplateBtn').disabled = !hasTemplate;
+  $('#exportTemplateBtn').disabled = !hasTemplate;
+  $('#deleteTemplateBtn').disabled = !hasTemplate;
+  const name = $('#templateName')?.value?.trim();
+  $('#saveTemplateBtn').disabled = !name;
+  const meta = $('#templateMeta');
+  if (!meta) return;
+  if (!tpl) {
+    meta.textContent = '还没有保存模板。填写名称后点击“保存当前为模板”。';
+    return;
+  }
+  const updated = tpl.updatedAt ? new Date(tpl.updatedAt).toLocaleString('zh-CN') : '未知时间';
+  meta.textContent = `当前选中：${tpl.name} · ${tpl.segments.length} 个片段 · 更新时间：${updated}${tpl.note ? ` · 备注：${tpl.note}` : ''}`;
+}
+
+async function persistSettingsQuietly() {
+  await window.aglove.saveSettings(getSettings());
+}
+
+async function saveCurrentTemplate() {
+  syncSegmentsFromDom();
+  const name = $('#templateName').value.trim();
+  if (!name) return showToast('请先填写模板名称');
+  const note = $('#templateNote').value.trim();
+  const current = selectedTemplate();
+  const now = new Date().toISOString();
+  const template = {
+    id: current?.id || crypto.randomUUID(),
+    name,
+    note,
+    updatedAt: now,
+    segments: cloneSegmentsForTemplate(state.segments),
+  };
+  const index = state.templates.findIndex((tpl) => tpl.id === template.id);
+  if (index >= 0) state.templates[index] = template;
+  else state.templates.push(template);
+  state.activeTemplateId = template.id;
+  renderTemplateLibrary();
+  await persistSettingsQuietly();
+  log(`已保存命名模板：${template.name}`);
+  showToast(`已保存模板：${template.name}`);
+}
+
+async function applySelectedTemplate() {
+  const tpl = selectedTemplate();
+  if (!tpl) return showToast('请先选择模板');
+  if (!confirm(`确定套用“${tpl.name}”吗？当前页面的片段设置会被替换。`)) return;
+  state.segments = cloneSegmentsForTemplate(tpl.segments, { freshIds: true });
+  state.activeTemplateId = tpl.id;
+  $('#templateName').value = tpl.name;
+  $('#templateNote').value = tpl.note || '';
+  renderSegments();
+  await persistSettingsQuietly();
+  log(`已套用命名模板：${tpl.name}`);
+  showToast(`已套用模板：${tpl.name}`);
+}
+
+async function deleteSelectedTemplate() {
+  const tpl = selectedTemplate();
+  if (!tpl) return showToast('请先选择模板');
+  if (!confirm(`确定删除模板“${tpl.name}”吗？`)) return;
+  state.templates = state.templates.filter((item) => item.id !== tpl.id);
+  state.activeTemplateId = state.templates[0]?.id || '';
+  renderTemplateLibrary();
+  await persistSettingsQuietly();
+  log(`已删除命名模板：${tpl.name}`);
+  showToast(`已删除模板：${tpl.name}`);
+}
+
+async function exportSelectedTemplate() {
+  const tpl = selectedTemplate();
+  if (!tpl) return showToast('请先选择模板');
+  try {
+    const filePath = await window.aglove.exportTemplateFile({
+      schema: 'aglove.naming-template.v1',
+      exportedAt: new Date().toISOString(),
+      template: { ...tpl, segments: cloneSegmentsForTemplate(tpl.segments) },
+    });
+    if (!filePath) return;
+    log(`已导出命名模板：${tpl.name} -> ${filePath}`);
+    showToast('模板已导出');
+  } catch (err) {
+    log(`导出模板失败：${err.message}`);
+    showToast('导出模板失败');
+  }
+}
+
+function templatesFromImportData(data) {
+  const raw = data?.template ? [data.template] : (Array.isArray(data?.templates) ? data.templates : (Array.isArray(data) ? data : []));
+  return migrateTemplates(raw).map((tpl) => ({ ...tpl, id: crypto.randomUUID(), updatedAt: new Date().toISOString() }));
+}
+
+async function importTemplateFile() {
+  try {
+    const result = await window.aglove.importTemplateFile();
+    if (!result) return;
+    const imported = templatesFromImportData(result.data);
+    if (!imported.length) return showToast('这个文件里没有识别到命名模板');
+    const existingNames = new Set(state.templates.map((tpl) => tpl.name));
+    for (const tpl of imported) {
+      const base = tpl.name || nextTemplateName();
+      let name = base;
+      let n = 2;
+      while (existingNames.has(name)) { name = `${base}-${n}`; n += 1; }
+      tpl.name = name;
+      existingNames.add(name);
+      state.templates.push(tpl);
+    }
+    state.activeTemplateId = imported[0].id;
+    renderTemplateLibrary();
+    await persistSettingsQuietly();
+    log(`已从 ${result.filePath} 导入 ${imported.length} 个命名模板。`);
+    showToast(`已导入 ${imported.length} 个模板`);
+  } catch (err) {
+    log(`导入模板失败：${err.message}`);
+    showToast('导入模板失败');
   }
 }
 
