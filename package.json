@@ -1,6 +1,6 @@
 {
   "name": "aglove-video-renamer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Ai 视频自动命名工具",
   "main": "src/main.js",
   "scripts": {
